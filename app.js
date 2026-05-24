@@ -2064,6 +2064,145 @@ function escapeHTML(str) {
   );
 }
 
+// Basic Hold / Recall Cart functionality (supports keyboard shortcuts)
+function holdCurrentCart() {
+  if (!state.cart || state.cart.length === 0) {
+    showToast('Cart is empty — nothing to hold', 'warning');
+    return;
+  }
+
+  if (!state.heldCarts) state.heldCarts = [];
+
+  const snapshot = {
+    id: 'hold_' + Date.now(),
+    timestamp: new Date().toISOString(),
+    items: JSON.parse(JSON.stringify(state.cart)),
+    customer: {
+      name: document.getElementById('custName')?.value || '',
+      contact: document.getElementById('custContact')?.value || ''
+    },
+    discountRate: parseFloat(document.getElementById('cartDiscountRate')?.value) || 0,
+    taxRate: parseFloat(document.getElementById('cartTaxRate')?.value) || 18,
+    serviceRate: parseFloat(document.getElementById('serviceFeeRate')?.value) || 0,
+    paymentMethod: state.paymentMethod || 'Cash'
+  };
+
+  state.heldCarts.push(snapshot);
+  state.cart = [];
+  state.paymentMethod = 'Cash';
+
+  // Clear form fields
+  ['custName', 'custContact', 'cartDiscountRate', 'cartTaxRate', 'serviceFeeRate', 'cashTendered'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = (id.includes('Rate') ? (id === 'cartTaxRate' ? '18' : '0') : '');
+  });
+
+  saveStore();
+  renderActiveTab();
+  showToast('Cart held successfully', 'success');
+}
+
+function openRecallCartsModal() {
+  const modal = document.getElementById('recallCartsModal');
+  const list = document.getElementById('recallCartsList');
+  if (!modal || !list) return;
+
+  if (!state.heldCarts || state.heldCarts.length === 0) {
+    list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-secondary);">No suspended carts.</div>`;
+  } else {
+    list.innerHTML = state.heldCarts.map((cart, index) => `
+      <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+          <strong>${cart.id}</strong>
+          <span style="color:var(--text-muted);">${new Date(cart.timestamp).toLocaleTimeString()}</span>
+        </div>
+        <div style="font-size:13px; margin-bottom:8px;">
+          ${cart.items.length} items • Total approx ₹${cart.items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary" style="flex:1; padding:6px;" onclick="recallHeldCart(${index})">Recall</button>
+          <button class="btn btn-secondary" style="flex:1; padding:6px; color:var(--danger);" onclick="deleteHeldCart(${index})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  openModal('recallCartsModal');
+}
+
+function recallHeldCart(index) {
+  if (!state.heldCarts || !state.heldCarts[index]) return;
+
+  const held = state.heldCarts[index];
+  state.cart = JSON.parse(JSON.stringify(held.items));
+
+  // Restore form values if elements exist
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  setVal('custName', held.customer?.name || '');
+  setVal('custContact', held.customer?.contact || '');
+  setVal('cartDiscountRate', held.discountRate || 0);
+  setVal('cartTaxRate', held.taxRate || 18);
+  setVal('serviceFeeRate', held.serviceRate || 0);
+
+  state.paymentMethod = held.paymentMethod || 'Cash';
+
+  // Remove from held
+  state.heldCarts.splice(index, 1);
+
+  closeModal('recallCartsModal');
+  saveStore();
+  renderActiveTab();
+  showToast('Cart recalled', 'success');
+}
+
+function deleteHeldCart(index) {
+  if (!state.heldCarts) return;
+  state.heldCarts.splice(index, 1);
+  saveStore();
+  openRecallCartsModal(); // refresh the list
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS SYSTEM
+// ============================================================
+
+function switchToTab(tabName) {
+  const menuItems = document.querySelectorAll('.sidebar-menu .menu-item');
+  const pages = document.querySelectorAll('.page-view');
+  const headerTitle = document.getElementById('headerTitle');
+
+  let found = false;
+  menuItems.forEach(item => {
+    if (item.getAttribute('data-tab') === tabName) {
+      menuItems.forEach(mi => mi.classList.remove('active'));
+      item.classList.add('active');
+      found = true;
+    }
+  });
+
+  pages.forEach(p => p.classList.remove('active'));
+  const target = document.getElementById(`${tabName}Page`);
+  if (target) target.classList.add('active');
+
+  const activeMenu = document.querySelector(`.sidebar-menu .menu-item[data-tab="${tabName}"]`);
+  if (activeMenu && headerTitle) {
+    const name = activeMenu.querySelector('.menu-item-text').innerText;
+    headerTitle.innerText = name;
+  }
+
+  state.activeTab = tabName;
+  renderActiveTab();
+}
+
+function showKeyboardShortcuts() {
+  openModal('shortcutsModal');
+}
+
+function isInputFocused() {
+  const active = document.activeElement;
+  return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+}
+
 // Setup Event Listeners on DOM Load
 document.addEventListener('DOMContentLoaded', () => {
   initStore();
@@ -2085,9 +2224,117 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Hotkey triggers
   window.addEventListener('keydown', (e) => {
-    // ESC to close modal
+    // Always allow Escape to close modals
     if (e.key === 'Escape') {
       modals.forEach(m => closeModal(m.id));
+      return;
+    }
+
+    // Don't trigger shortcuts while typing in inputs (except help and escape)
+    if (isInputFocused()) {
+      if (e.key === '?' || (ctrl && e.key === '/')) {
+        e.preventDefault();
+        showKeyboardShortcuts();
+        return;
+      }
+      // Allow Ctrl+Enter even in some inputs
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const posPage = document.getElementById('posPage');
+        if (posPage && posPage.classList.contains('active')) {
+          e.preventDefault();
+          processCheckout();
+        }
+      }
+      return;
+    }
+
+    const ctrl = e.ctrlKey || e.metaKey;
+    const alt = e.altKey;
+
+    // === NAVIGATION (Alt + 1-5) ===
+    if (alt && !ctrl) {
+      switch (e.key) {
+        case '1': e.preventDefault(); switchToTab('dashboard'); return;
+        case '2': e.preventDefault(); switchToTab('pos'); return;
+        case '3': e.preventDefault(); switchToTab('inventory'); return;
+        case '4': e.preventDefault(); switchToTab('reports'); return;
+        case '5': e.preventDefault(); switchToTab('settings'); return;
+      }
+    }
+
+    // === GENERAL ===
+    if (e.key === '?' || (ctrl && e.key === '/')) {
+      e.preventDefault();
+      showKeyboardShortcuts();
+      return;
+    }
+
+    // === BILLING TERMINAL ===
+    if (ctrl) {
+      switch (e.key.toLowerCase()) {
+        case 'k':
+          e.preventDefault();
+          switchToTab('pos');
+          setTimeout(() => {
+            const quickInput = document.getElementById('quickSkuInput');
+            if (quickInput) quickInput.focus();
+          }, 80);
+          return;
+
+        case 'enter':
+          e.preventDefault();
+          processCheckout();
+          return;
+
+        case 'd':
+          e.preventDefault();
+          state.cart = [];
+          renderActiveTab();
+          showToast('Cart cleared', 'info');
+          return;
+
+        case 'h':
+          e.preventDefault();
+          switchToTab('pos');
+          setTimeout(() => holdCurrentCart(), 50);
+          return;
+
+        case 'r':
+          e.preventDefault();
+          switchToTab('pos');
+          setTimeout(() => openRecallCartsModal(), 50);
+          return;
+
+        case 'e':
+          e.preventDefault();
+          switchToTab('inventory');
+          setTimeout(() => exportInventoryCSV(), 80);
+          return;
+
+        case 'i':
+          e.preventDefault();
+          switchToTab('inventory');
+          setTimeout(() => importInventoryCSV(), 80);
+          return;
+      }
+    }
+
+    // Inventory specific
+    if (ctrl && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      switchToTab('inventory');
+      setTimeout(() => openAddProductModal(), 80);
+      return;
+    }
+
+    if (ctrl && e.key.toLowerCase() === 'f') {
+      const invPage = document.getElementById('inventoryPage');
+      if (invPage && invPage.classList.contains('active')) {
+        e.preventDefault();
+        const search = document.getElementById('inventorySearch');
+        if (search) search.focus();
+      }
+      return;
     }
   });
 
