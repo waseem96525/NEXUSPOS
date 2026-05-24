@@ -1211,6 +1211,30 @@ function bulkDeleteSelected() {
   showToast('Selected products deleted', 'success');
 }
 
+// Bulk load stock (add quantity to all selected products) - for receiving shipments etc.
+function bulkLoadStock() {
+  if (!state.inventorySelected || state.inventorySelected.length === 0) return;
+
+  const input = document.getElementById('bulkLoadAmount');
+  const qty = parseInt(input ? input.value : '10', 10) || 10;
+
+  if (qty <= 0) {
+    showToast('Enter a positive quantity to load', 'warning');
+    return;
+  }
+
+  state.inventorySelected.forEach(id => {
+    const p = state.products.find(x => x.id === id);
+    if (p) {
+      p.stock = (p.stock || 0) + qty;
+    }
+  });
+
+  saveStore();
+  renderInventory();
+  showToast(`Loaded +${qty} stock for ${state.inventorySelected.length} items`, 'success');
+}
+
 function sortInventory(key) {
   if (state.inventorySortKey === key) {
     state.inventorySortDir *= -1;
@@ -1235,6 +1259,148 @@ function exportInventoryCSV() {
   a.download = 'inventory_export.csv';
   a.click();
   showToast('Inventory exported', 'success');
+}
+
+// CSV Import for inventory (upsert by SKU)
+function importInventoryCSV() {
+  const fileInput = document.getElementById('inventoryImportFile');
+  if (fileInput) fileInput.click();
+}
+
+function handleInventoryImport(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      const rows = parseCSV(text);
+      if (!rows || rows.length === 0) {
+        showToast('No valid data rows found in the CSV', 'warning');
+        return;
+      }
+      processImportedProducts(rows);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to read or parse the CSV file', 'danger');
+    }
+  };
+  reader.onerror = () => showToast('Could not read the selected file', 'danger');
+  reader.readAsText(file);
+  // Reset input so same file can be selected again
+  input.value = '';
+}
+
+function parseCSV(csvText) {
+  const lines = csvText.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+
+  // Parse header
+  const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const values = parseCSVLine(line);
+    const obj = {};
+    headers.forEach((header, index) => {
+      obj[header] = values[index] !== undefined ? values[index].trim() : '';
+    });
+    result.push(obj);
+  }
+  return result;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"' ) {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function processImportedProducts(rows) {
+  let added = 0;
+  let updated = 0;
+
+  const skuMap = new Map(state.products.map(p => [p.sku.toLowerCase().trim(), p]));
+
+  rows.forEach(row => {
+    // Support common header variations from the export
+    const sku = (row.sku || row['sku code'] || row['sku'] || '').trim();
+    const name = (row.name || row['product name'] || row['product'] || '').trim();
+    if (!sku || !name) return; // require at minimum SKU + Name
+
+    const cost = parseFloat(row.cost || row['cost price'] || row.costprice || '0') || 0;
+    const selling = parseFloat(row.selling || row['selling price'] || row.sellingprice || '0') || 0;
+
+    const prodData = {
+      name: name,
+      sku: sku,
+      category: row.category || 'General',
+      costPrice: cost,
+      mrp: parseFloat(row.mrp || row['mrp'] || '') || undefined,
+      sellingPrice: selling,
+      stock: Math.max(0, parseInt(row.stock || row['stock qty'] || '0') || 0),
+      minStock: Math.max(0, parseInt(row['min stock'] || row.minstock || row['minstock'] || '0') || 0),
+      unit: row.unit || 'Piece',
+      supplier: row.supplier || '',
+      barcode: row.barcode || '',
+      expiryDate: row.expiry || row['expiry date'] || row.expirydate || '',
+      taxRate: parseFloat(row['tax%'] || row.taxrate || row['tax rate'] || '18') || 18,
+      description: row.description || row.desc || ''
+    };
+
+    const existing = skuMap.get(sku.toLowerCase());
+
+    if (existing) {
+      // Update existing product
+      Object.keys(prodData).forEach(key => {
+        if (prodData[key] !== undefined && prodData[key] !== '') {
+          existing[key] = prodData[key];
+        }
+      });
+      updated++;
+    } else {
+      // Add new product
+      const newProduct = {
+        id: 'prod_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8),
+        ...prodData,
+        createdAt: new Date().toISOString()
+      };
+      state.products.push(newProduct);
+      skuMap.set(sku.toLowerCase(), newProduct);
+      added++;
+    }
+  });
+
+  if (added === 0 && updated === 0) {
+    showToast('No products were imported (check headers and data)', 'warning');
+    return;
+  }
+
+  saveStore();
+  renderInventory();
+
+  showToast(`Import finished: ${added} new, ${updated} updated`, 'success');
 }
 
 function getFilteredProductsForInv() {

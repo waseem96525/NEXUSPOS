@@ -408,22 +408,31 @@
               </svg>
               Add Product
             </button>
+            <button class="btn btn-secondary" onclick="importInventoryCSV()" title="Import products from CSV (matches by SKU)">
+              Import CSV
+            </button>
             <button class="btn btn-secondary" onclick="exportInventoryCSV()" title="Export filtered inventory to CSV">
               Export CSV
             </button>
           </div>
 
-          <!-- Bulk actions bar (shown when items selected) -->
-          <div id="inventoryBulkBar" style="display:none; align-items:center; gap:8px; margin:8px 0; padding:6px 10px; background:var(--bg-tertiary); border-radius:var(--border-radius-sm); font-size:12px;">
-            <span id="bulkCount">0 selected</span>
-            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="bulkAdjustStock(1)">+1 Stock</button>
-            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="bulkAdjustStock(-1)">-1 Stock</button>
-            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px; color:var(--danger);" onclick="bulkDeleteSelected()">Delete Selected</button>
-            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="clearInventorySelection()">Clear</button>
-          </div>
+           <!-- Bulk actions bar (shown when items selected) -->
+           <div id="inventoryBulkBar" style="display:none; align-items:center; gap:8px; margin:8px 0; padding:6px 10px; background:var(--bg-tertiary); border-radius:var(--border-radius-sm); font-size:12px;">
+             <span id="bulkCount">0 selected</span>
+             <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="bulkAdjustStock(1)">+1 Stock</button>
+             <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="bulkAdjustStock(-1)">-1 Stock</button>
+             <span style="margin-left:6px;opacity:0.7;">Load:</span>
+             <input type="number" id="bulkLoadAmount" value="10" min="1" style="width:52px;padding:2px 5px;font-size:11px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);" />
+             <button class="btn btn-secondary" style="padding:3px 7px; font-size:11px;" onclick="bulkLoadStock()">+ Load</button>
+             <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px; color:var(--danger);" onclick="bulkDeleteSelected()">Delete Selected</button>
+             <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="clearInventorySelection()">Clear</button>
+           </div>
 
-          <!-- Product CRUD Database Grid -->
-          <div class="table-container">
+           <!-- Hidden file input for CSV import -->
+           <input type="file" id="inventoryImportFile" accept=".csv,text/csv" style="display:none" onchange="handleInventoryImport(this)">
+
+           <!-- Product CRUD Database Grid -->
+           <div class="table-container">
             <table class="custom-table">
                <thead>
                  <tr>
