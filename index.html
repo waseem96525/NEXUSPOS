@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus Retail - Billing & Inventory Management</title>
+  <!-- SEO & Meta -->
+  <meta name="description" content="A state-of-the-art billing and inventory management single page application featuring real-time Point of Sale terminal, dashboard SVG sales charts, CRUD inventory panel, and printable commercial invoice generator.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Floating Toast Notifications Stack -->
+  <div id="toastContainer" style="position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; width: 320px; max-width: calc(100vw - 48px); pointer-events: none;"></div>
+
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation Drawer -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">N</div>
+        <div class="brand-name">Nexus Retail</div>
+      </div>
+      
+      <ul class="sidebar-menu">
+        <li class="menu-item active" data-tab="dashboard">
+          <a href="#" class="menu-item-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="9"></rect>
+              <rect x="14" y="3" width="7" height="5"></rect>
+              <rect x="14" y="12" width="7" height="9"></rect>
+              <rect x="3" y="16" width="7" height="5"></rect>
+            </svg>
+            <span class="menu-item-text">Dashboard</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="settings">
+          <a href="#" class="menu-item-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span class="menu-item-text">Settings</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="pos">
+          <a href="#" class="menu-item-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            <span class="menu-item-text">Billing Terminal</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="inventory">
+          <a href="#" class="menu-item-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span class="menu-item-text">Inventory CRUD</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="reports">
+          <a href="#" class="menu-item-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span class="menu-item-text">Reports</span>
+          </a>
+        </li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <div class="sidebar-profile">
+          <div class="profile-avatar">A</div>
+          <div class="profile-info">
+            <span class="profile-name">Administrator</span>
+            <span class="profile-role">Store Manager</span>
+          </div>
+        </div>
+        <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+          <!-- Populated by JS -->
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Workspace -->
+    <div class="main-wrapper">
+      
+      <!-- Top Actionbar Header -->
+      <header class="app-header">
+        <div class="header-title-area" style="display: flex; align-items: center; gap: 16px;">
+          <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Side Draw">☰</button>
+          <h1 id="headerTitle" style="font-size: 22px; font-weight: 700; font-family: var(--font-heading);">Dashboard</h1>
+        </div>
+        
+        <div class="header-actions">
+          <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: var(--border-radius-sm); display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--success); font-size: 16px;">●</span> Terminal Active
+          </div>
+        </div>
+      </header>
+
+      <!-- 1. DASHBOARD VIEW -->
+      <main class="page-view active" id="dashboardPage">
+        
+        <!-- Metrics Stats Cards Grid -->
+        <section class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">Total Revenue</span>
+              <div class="stat-icon-wrapper success">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="stat-value" id="dashRevenue">₹0.00</div>
+            <div class="stat-trend up">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+              <span>+12.4% this week</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">Invoices Issued</span>
+              <div class="stat-icon-wrapper indigo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+              </div>
+            </div>
+            <div class="stat-value" id="dashSalesCount">0</div>
+            <div class="stat-trend up">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+              <span>+8.2% from last week</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">Total Products</span>
+              <div class="stat-icon-wrapper info">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="stat-value" id="dashProductsCount">0</div>
+            <div class="stat-trend neutral">
+              <span>Active in database</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">Stock Alerts</span>
+              <div class="stat-icon-wrapper danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </div>
+            </div>
+            <div class="stat-value" id="dashLowStock" style="color: var(--danger);">0</div>
+            <div class="stat-trend down" id="lowStockSubtitle">
+              <span>Need attention</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Dynamic Visualization Grid -->
+        <div class="dashboard-grid">
+          
+          <!-- Sales SVG Chart -->
+          <div class="dashboard-card">
+            <div class="card-title-bar">
+              <h3 style="font-size: 16px;">Sales Trend (Last 7 Days)</h3>
+              <span style="font-size: 12px; color: var(--text-muted);">Real-time aggregated daily total</span>
+            </div>
+            <div class="chart-wrapper" id="dashboardChartWrapper">
+              <!-- Rendered Dynamically by app.js -->
+            </div>
+          </div>
+
+          <!-- Low Stock Warning Board -->
+          <div class="dashboard-card">
+            <div class="card-title-bar">
+              <h3 style="font-size: 16px;">Low Stock Monitor</h3>
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="document.querySelector('[data-tab=inventory]').click()">Manage</button>
+            </div>
+            <div class="low-stock-list" id="dashLowStockList">
+              <!-- Rendered Dynamically by app.js -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Transactions Grid -->
+        <div class="dashboard-card" style="margin-bottom: 24px;">
+          <div class="card-title-bar">
+            <h3 style="font-size: 16px;">Recent Sales Transactions</h3>
+            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="document.querySelector('[data-tab=reports]').click()">Full History</button>
+          </div>
+          <div class="low-stock-list" id="dashRecentTransactionsList">
+            <!-- Rendered Dynamically by app.js -->
+          </div>
+        </div>
+      </main>
+
+      <!-- 2. POINT OF SALE TERMINAL VIEW -->
+      <main class="page-view" id="posPage">
+        <div class="pos-layout">
+          
+          <!-- Catalog Panel -->
+          <section class="pos-catalog-panel">
+            <!-- Category Chips Filter Row -->
+            <div class="pos-categories-chips" id="posCategoryChips">
+              <!-- Loaded Dynamically by app.js -->
+            </div>
+            
+            <div class="pos-toolbar">
+              <div class="search-input-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input type="text" id="posSearch" class="form-control" placeholder="Search by name, SKU..." oninput="renderPOS()">
+              </div>
+              <select id="posCategoryFilter" class="select-control" onchange="renderPOS()">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+
+            <div class="pos-grid-scroll">
+              <div class="pos-catalog-grid" id="posCatalogGrid">
+                <!-- Loaded Dynamically by app.js -->
+              </div>
+            </div>
+          </section>
+
+          <!-- POS Active Cart Details -->
+          <section class="pos-cart-panel">
+            <div class="cart-title-bar">
+              <h3 style="font-size: 16px;">Active Cart</h3>
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; color: var(--danger); border-color: rgba(239,68,68,0.2);" onclick="state.cart = []; renderActiveTab();">Clear</button>
+            </div>
+
+            <!-- Suspended Cart Controls -->
+            <div class="pos-hold-recall-bar">
+              <button class="btn btn-secondary btn-hold" onclick="holdCurrentCart()" title="Suspend current cart items">Hold Cart</button>
+              <button class="btn btn-secondary btn-recall" onclick="openRecallCartsModal()" title="Recall suspended carts">
+                Recall <span class="recall-badge-count" id="recallCartCount" style="display: none;">0</span>
+              </button>
+            </div>
+
+            <!-- Advanced Quick SKU/Barcode Entry for fast billing terminal -->
+            <div class="quick-sku-bar" style="display:flex; gap:6px; margin: 0 4px 8px; padding:0;">
+              <input type="text" id="quickSkuInput" class="form-control" placeholder="Quick SKU / scan barcode (advanced)" style="flex:1; font-size:12px;" onkeypress="if(event.key==='Enter'){quickAddBySku();}">
+              <button type="button" class="btn btn-secondary" style="padding:4px 10px; font-size:11px; white-space:nowrap;" onclick="quickAddBySku()">Add to Cart</button>
+            </div>
+
+            <!-- Scrollable area for items + empty state -->
+            <div class="cart-scroll-area" style="flex: 1 1 auto; overflow-y: auto; min-height: 0; display: flex; flex-direction: column;">
+              <!-- Cart Items List Container -->
+              <div class="cart-items-wrapper" id="posCartItemsList">
+                <!-- Loaded Dynamically by app.js -->
+              </div>
+
+              <!-- Cart Empty Placeholder -->
+              <div class="cart-empty-state" id="posCartEmptyState">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                </svg>
+                <p>Add products to start billing</p>
+              </div>
+            </div>
+
+            <!-- Cart Summary details (always at bottom) -->
+            <div class="cart-checkout-details" id="posCheckoutDetails" style="display: none;">
+              
+              <!-- Customer Intake Form -->
+              <div class="customer-input-block">
+                <input type="text" id="custName" class="form-control" placeholder="Customer Name (Optional)">
+                <input type="text" id="custContact" class="form-control" placeholder="Email or Mobile (Optional)">
+              </div>
+
+              <!-- Discount & Tax sliders -->
+              <div class="discount-tax-grid">
+                <div>
+                  <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 2px;">Discount (%)</label>
+                  <input type="number" id="cartDiscountRate" class="form-control" min="0" max="100" value="0" oninput="renderCart()" style="padding: 6px 10px;">
+                  <div class="presets-container">
+                    <button type="button" class="preset-btn" onclick="setDiscountPreset(0)">0%</button>
+                    <button type="button" class="preset-btn" onclick="setDiscountPreset(5)">5%</button>
+                    <button type="button" class="preset-btn" onclick="setDiscountPreset(10)">10%</button>
+                    <button type="button" class="preset-btn" onclick="setDiscountPreset(15)">15%</button>
+                  </div>
+                </div>
+                <div>
+                  <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 2px;">GST / Tax (%)</label>
+                  <input type="number" id="cartTaxRate" class="form-control" min="0" max="100" value="18" oninput="renderCart()" style="padding: 6px 10px;">
+                  <div class="presets-container">
+                    <button type="button" class="preset-btn" onclick="setTaxPreset(0)">0%</button>
+                    <button type="button" class="preset-btn" onclick="setTaxPreset(5)">5%</button>
+                    <button type="button" class="preset-btn" onclick="setTaxPreset(12)">12%</button>
+                    <button type="button" class="preset-btn" onclick="setTaxPreset(18)">18%</button>
+                  </div>
+                </div>
+              </div>
+ 
+              <!-- Advanced: Service Fee Option -->
+              <div class="discount-tax-grid">
+                <div>
+                  <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 2px;">Service Fee (%)</label>
+                  <input type="number" id="serviceFeeRate" class="form-control" min="0" max="20" value="0" oninput="renderCart()" style="padding: 6px 10px;">
+                  <div class="presets-container">
+                    <button type="button" class="preset-btn" onclick="applyServicePreset(0)">0%</button>
+                    <button type="button" class="preset-btn" onclick="applyServicePreset(2)">2%</button>
+                    <button type="button" class="preset-btn" onclick="applyServicePreset(5)">5%</button>
+                  </div>
+                </div>
+                <div></div>
+              </div>
+
+               <!-- Payment Method Switches -->
+              <div class="payment-method-selector">
+                <div class="payment-btn" data-method="Cash" onclick="selectPaymentMethod('Cash')">Cash</div>
+                <div class="payment-btn" data-method="Card" onclick="selectPaymentMethod('Card')">Card</div>
+                <div class="payment-btn" data-method="UPI" onclick="selectPaymentMethod('UPI')">UPI</div>
+                <div class="payment-btn" data-method="Bank Transfer" onclick="selectPaymentMethod('Bank Transfer')">Bank</div>
+              </div>
+
+              <div class="checkout-row">
+                <span>Subtotal</span>
+                <span id="checkoutSubtotal">₹0.00</span>
+              </div>
+              <div class="checkout-row" style="color: var(--danger);">
+                <span>Discount</span>
+                <span id="checkoutDiscount">-₹0.00</span>
+              </div>
+              <div class="checkout-row">
+                <span>GST Tax</span>
+                <span id="checkoutTax">+₹0.00</span>
+              </div>
+              <div class="checkout-row total">
+                <span>Total Amount</span>
+                <span id="checkoutGrandTotal">₹0.00</span>
+              </div>
+
+              <!-- Advanced Cash Terminal: Tendered & Change Calculator (shows for Cash) -->
+              <div id="cashTenderSection" style="display:none; margin:8px 0; padding:8px; background:var(--bg-tertiary); border-radius:var(--border-radius-sm); font-size:12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="min-width:82px; color:var(--text-secondary);">Cash Tendered</span>
+                  <input type="number" id="cashTendered" class="form-control" step="0.01" min="0" placeholder="0.00" style="flex:1; max-width:100px; padding:3px 6px;" oninput="calculateCashChange()">
+                  <span style="white-space:nowrap;">Change Due: <strong id="cashChangeDue" style="color:var(--success);">₹0.00</strong></span>
+                </div>
+              </div>
+ 
+              <button class="btn btn-primary" style="width: 100%; padding: 14px;" onclick="processCheckout()">
+                Generate Invoice & Checkout
+              </button>
+            </div>
+          </section>
+
+        </div>
+      </main>
+
+      <!-- 3. INVENTORY GRID VIEW -->
+      <main class="page-view" id="inventoryPage">
+        
+        <div class="table-panel">
+          <!-- Inventory summary stats (advanced) -->
+          <div id="inventorySummary" style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;">
+            <!-- JS populated cards -->
+          </div>
+
+          <!-- Toolbar header -->
+          <div class="table-toolbar">
+            <div class="table-search-filters">
+              <input type="text" id="inventorySearch" class="form-control" placeholder="Search by name, SKU..." oninput="renderInventory()">
+              
+              <select id="inventoryCategoryFilter" class="select-control" onchange="renderInventory()">
+                <option value="">All Categories</option>
+              </select>
+
+              <select id="inventoryStatusFilter" class="select-control" onchange="renderInventory()">
+                <option value="">All Stock Status</option>
+                <option value="in">In Stock</option>
+                <option value="low">Low Stock</option>
+                <option value="out">Out of Stock</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary" onclick="openAddProductModal()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Product
+            </button>
+            <button class="btn btn-secondary" onclick="exportInventoryCSV()" title="Export filtered inventory to CSV">
+              Export CSV
+            </button>
+          </div>
+
+          <!-- Bulk actions bar (shown when items selected) -->
+          <div id="inventoryBulkBar" style="display:none; align-items:center; gap:8px; margin:8px 0; padding:6px 10px; background:var(--bg-tertiary); border-radius:var(--border-radius-sm); font-size:12px;">
+            <span id="bulkCount">0 selected</span>
+            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="bulkAdjustStock(1)">+1 Stock</button>
+            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="bulkAdjustStock(-1)">-1 Stock</button>
+            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px; color:var(--danger);" onclick="bulkDeleteSelected()">Delete Selected</button>
+            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="clearInventorySelection()">Clear</button>
+          </div>
+
+          <!-- Product CRUD Database Grid -->
+          <div class="table-container">
+            <table class="custom-table">
+               <thead>
+                 <tr>
+                   <th style="width:26px"><input type="checkbox" id="invSelectAll" onchange="toggleAllInventorySelect(this)"></th>
+                   <th onclick="sortInventory('name')">Product</th>
+                   <th onclick="sortInventory('sku')">SKU</th>
+                   <th onclick="sortInventory('costPrice')">Cost Price</th>
+                   <th onclick="sortInventory('sellingPrice')">Retail Price</th>
+                   <th onclick="sortInventory('stock')">Stock Qty</th>
+                   <th>Value @ Cost</th>
+                   <th>Status</th>
+                   <th style="width: 110px;">Actions</th>
+                 </tr>
+               </thead>
+              <tbody id="inventoryTableBody">
+                <!-- Rendered Dynamically by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- 4. TRANSACTION LOGS HISTORY VIEW -->
+      <main class="page-view" id="reportsPage">
+        <div style="max-width: 1200px; margin: 0 auto;">
+          
+          <!-- Reports Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+              <h2 style="font-size: 20px; margin: 0;">Detailed Reports &amp; Analytics</h2>
+              <p style="margin: 4px 0 0; color: var(--text-secondary); font-size: 13px;">Sales performance, breakdowns and transaction logs</p>
+            </div>
+            <button class="btn btn-primary" onclick="exportReportCSV()">
+              Export Full Report CSV
+            </button>
+          </div>
+
+          <!-- Date Range Filters -->
+          <div class="table-panel" style="padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+              <div>
+                <label style="font-size: 11px; display: block; margin-bottom: 2px; color: var(--text-secondary);">From</label>
+                <input type="date" id="reportDateFrom" class="form-control" style="width: 160px; padding: 8px;" onchange="renderReports()">
+              </div>
+              <div>
+                <label style="font-size: 11px; display: block; margin-bottom: 2px; color: var(--text-secondary);">To</label>
+                <input type="date" id="reportDateTo" class="form-control" style="width: 160px; padding: 8px;" onchange="renderReports()">
+              </div>
+              <div style="padding-top: 18px;">
+                <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="setReportQuickRange(7)">Last 7d</button>
+                <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="setReportQuickRange(30)">Last 30d</button>
+                <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="setReportQuickRange(0)">All Time</button>
+              </div>
+              <div style="margin-left: auto;">
+                <button class="btn btn-secondary" onclick="resetReportFilters()">Reset Filters</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Summary Cards -->
+          <div class="stats-grid" id="reportKpiGrid" style="margin-bottom: 16px;">
+            <!-- Populated by JS -->
+          </div>
+
+          <!-- Breakdown Sections -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            
+            <!-- Payment Method Breakdown -->
+            <div class="dashboard-card">
+              <div class="card-title-bar">
+                <h3 style="font-size: 15px;">Payment Method Breakdown</h3>
+              </div>
+              <div id="reportPaymentBreakdown" style="padding: 8px 0;">
+                <!-- JS populated bars -->
+              </div>
+            </div>
+
+            <!-- Top Products -->
+            <div class="dashboard-card">
+              <div class="card-title-bar">
+                <h3 style="font-size: 15px;">Top Selling Products</h3>
+              </div>
+              <div id="reportTopProducts" style="padding: 4px 0; font-size: 13px;">
+                <!-- JS populated list -->
+              </div>
+            </div>
+
+           </div>
+
+           <!-- Category-wise Sales Report -->
+           <div class="dashboard-card" style="margin-bottom: 16px;">
+             <div class="card-title-bar">
+               <h3 style="font-size: 15px;">Category-wise Sales Report</h3>
+             </div>
+             <div id="reportCategoryBreakdown" style="padding: 4px 0; font-size: 13px; max-height: 240px; overflow-y: auto;">
+               <!-- Populated by JS -->
+             </div>
+           </div>
+ 
+           <!-- Detailed Transactions Log -->
+          <div class="table-panel">
+            <div class="table-toolbar">
+              <div class="table-search-filters">
+                <input type="text" id="reportSearch" class="form-control" placeholder="Search invoice, customer..." oninput="renderReports()" style="max-width: 220px;">
+                
+                <select id="reportMethodFilter" class="select-control" onchange="renderReports()">
+                  <option value="">All Payments</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                </select>
+              </div>
+              <div style="color: var(--text-muted); font-size: 12px;" id="reportSummaryLine"></div>
+            </div>
+
+            <div class="table-container">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Invoice ID</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Subtotal</th>
+                    <th>Discount</th>
+                    <th>Tax</th>
+                    <th>Total</th>
+                    <th>Payment</th>
+                    <th style="width: 70px;">View</th>
+                  </tr>
+                </thead>
+                <tbody id="reportTxTableBody">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      <!-- 5. SETTINGS PAGE VIEW -->
+      <main class="page-view" id="settingsPage">
+        <div style="max-width: 800px; margin: 0 auto;">
+          
+          <h2 style="font-size: 20px; margin: 0 0 16px 0;">Settings</h2>
+          <p style="margin: 0 0 24px 0; color: var(--text-secondary); font-size: 13px;">Configure shop details, invoice preferences, and application settings.</p>
+
+          <!-- Shop Details Section -->
+          <div class="dashboard-card" style="margin-bottom: 16px;">
+            <div class="card-title-bar">
+              <h3 style="font-size: 16px;">Shop Details</h3>
+            </div>
+            <div style="padding: 16px;">
+              <div class="form-group">
+                <label for="shopName">Shop / Business Name *</label>
+                <input type="text" id="shopName" class="form-control" placeholder="Enter shop name">
+              </div>
+              <div class="form-group">
+                <label for="shopAddress">Shop Address</label>
+                <textarea id="shopAddress" class="form-control" rows="3" placeholder="Enter shop address"></textarea>
+              </div>
+              <div class="form-row form-row-3">
+                <div class="form-group">
+                  <label for="shopPhone">Phone Number</label>
+                  <input type="text" id="shopPhone" class="form-control" placeholder="Enter phone number">
+                </div>
+                <div class="form-group">
+                  <label for="shopEmail">Email Address</label>
+                  <input type="email" id="shopEmail" class="form-control" placeholder="Enter email address">
+                </div>
+                <div class="form-group">
+                  <label for="shopGSTIN">GSTIN / Tax ID</label>
+                  <input type="text" id="shopGSTIN" class="form-control" placeholder="Enter GSTIN">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="shopOwner">Owner / Contact Person Name</label>
+                <input type="text" id="shopOwner" class="form-control" placeholder="Enter owner name">
+              </div>
+            </div>
+          </div>
+
+          <!-- Invoice Preferences Section -->
+          <div class="dashboard-card" style="margin-bottom: 16px;">
+            <div class="card-title-bar">
+              <h3 style="font-size: 16px;">Invoice Preferences</h3>
+            </div>
+            <div style="padding: 16px;">
+              <div class="form-row form-row-3">
+                <div class="form-group">
+                  <label for="invoicePrefix">Invoice Number Prefix</label>
+                  <input type="text" id="invoicePrefix" class="form-control" placeholder="e.g. INV-">
+                </div>
+                <div class="form-group">
+                  <label for="invoiceStartNumber">Next Invoice Number (starts from)</label>
+                  <input type="number" id="invoiceStartNumber" class="form-control" min="1" placeholder="1000">
+                </div>
+                <div class="form-group">
+                  <label for="defaultCurrency">Currency Symbol</label>
+                  <input type="text" id="defaultCurrency" class="form-control" placeholder="₹">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="footerNote">Invoice Footer Note</label>
+                <textarea id="footerNote" class="form-control" rows="2" placeholder="Thank you for your business!"></textarea>
+              </div>
+              <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="logoutEnabled">
+                  <span>Enable Logout / Lock Screen button in sidebar</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="btn btn-success" onclick="saveShopSettings()">Save All Settings</button>
+            <span id="settingsSaveStatus" style="color: var(--success); font-size: 13px;"></span>
+          </div>
+
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT PRODUCT -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="productModalTitle">Add New Product</h3>
+        <button class="modal-close" onclick="closeModal('productModal')">×</button>
+      </div>
+      
+      <form id="prodForm" onsubmit="saveProduct(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="prodName">Product Name *</label>
+            <input type="text" id="prodName" class="form-control" required placeholder="e.g. Dell Curved Display 34">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="prodSku">SKU Code *</label>
+              <input type="text" id="prodSku" class="form-control" required placeholder="e.g. DEL-CRV34-01">
+            </div>
+            <div class="form-group">
+              <label for="prodCategory">Category *</label>
+              <select id="prodCategory" class="form-control" required onchange="toggleAddCategoryInput()">
+                <!-- Loaded by JS -->
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" id="customCategoryGroup" style="display: none;">
+            <label for="prodCustomCategory">Enter New Category Name *</label>
+            <input type="text" id="prodCustomCategory" class="form-control" placeholder="e.g. Kitchenware">
+          </div>
+
+           <div class="form-row form-row-3">
+             <div class="form-group">
+               <label for="prodCostPrice">Cost Price (₹) *</label>
+               <input type="number" step="0.01" min="0" id="prodCostPrice" class="form-control" required placeholder="0.00">
+             </div>
+             <div class="form-group">
+               <label for="prodMRP">MRP (₹)</label>
+               <input type="number" step="0.01" min="0" id="prodMRP" class="form-control" placeholder="0.00">
+             </div>
+             <div class="form-group">
+               <label for="prodSellingPrice">Selling Price (₹) *</label>
+               <input type="number" step="0.01" min="0" id="prodSellingPrice" class="form-control" required placeholder="0.00">
+             </div>
+           </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="prodStock">Stock Level *</label>
+              <input type="number" min="0" id="prodStock" class="form-control" required placeholder="0">
+            </div>
+            <div class="form-group">
+              <label for="prodMinStock">Min Alert Qty *</label>
+              <input type="number" min="0" id="prodMinStock" class="form-control" required placeholder="0">
+            </div>
+          </div>
+
+          <!-- Upgraded advanced product fields -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="prodSupplier">Supplier</label>
+              <input type="text" id="prodSupplier" class="form-control" placeholder="e.g. Apple Inc">
+            </div>
+            <div class="form-group">
+              <label for="prodBarcode">Barcode / GTIN</label>
+              <input type="text" id="prodBarcode" class="form-control" placeholder="e.g. 1234567890123">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="prodUnit">Unit Type</label>
+              <select id="prodUnit" class="form-control">
+                <option value="Piece">Piece</option>
+                <option value="Box">Box</option>
+                <option value="Kg">Kg</option>
+                <option value="Litre">Litre</option>
+                <option value="Pack">Pack</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="prodExpiry">Expiry Date</label>
+              <input type="date" id="prodExpiry" class="form-control">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="prodDescription">Description (optional)</label>
+            <textarea id="prodDescription" class="form-control" rows="2" placeholder="Short notes, specs..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="prodTaxRate">Item Tax Rate (%)</label>
+              <input type="number" id="prodTaxRate" class="form-control" min="0" max="100" value="18" step="0.5">
+            </div>
+            <div class="form-group" style="display:flex; align-items:flex-end; gap:4px;">
+              <button type="button" class="btn btn-secondary" onclick="suggestMarginPrice(30)">Suggest +30%</button>
+              <button type="button" class="btn btn-secondary" onclick="suggestMarginPrice(50)">+50% Margin</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('productModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: PRINT PREVIEW INVOICE -->
+  <div class="modal-overlay" id="invoiceModal">
+    <div class="modal-card invoice-modal-card">
+      <div class="modal-header">
+        <h3>Invoice Details Preview</h3>
+        <button class="modal-close" onclick="closeModal('invoiceModal')">×</button>
+      </div>
+      
+      <div class="invoice-preview-area" id="invoicePreviewArea">
+        <!-- Rendered Dynamically by app.js (optimized for print view styles) -->
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('invoiceModal')">Dismiss</button>
+        <button type="button" id="printInvoiceBtn" class="btn btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+          Print / PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RECALL SUSPENDED CARTS -->
+  <div class="modal-overlay" id="recallCartsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Suspended / Held Carts</h3>
+        <button class="modal-close" onclick="closeModal('recallCartsModal')">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+        <div id="recallCartsList" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Loaded dynamically by app.js -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" style="width: 100%;" onclick="closeModal('recallCartsModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
