@@ -1555,7 +1555,11 @@ function getReportFilteredTransactions() {
       tx.customer.contact.toLowerCase().includes(search);
     const matchesMethod = !method || tx.paymentMethod === method;
     const txType = tx.type || 'sale';
-    const matchesType = !typeFilter || txType === typeFilter;
+    let matchesType = !typeFilter;
+    if (typeFilter) {
+      if (typeFilter === 'sale') matchesType = txType === 'sale' || txType === 'exchange';
+      else matchesType = txType === typeFilter;
+    }
     return matchesDate && matchesSearch && matchesMethod && matchesType;
   });
 }
@@ -1874,7 +1878,11 @@ if (tableBody) {
              </button>
            </td>
            <td>
-             ${tx.type === 'return' ? '<span style="font-size:10px;color:var(--text-muted);">Credit Note</span>' : `<button class="action-btn" onclick="openReturnModal('${tx.id}')" title="Process Return" style="background:var(--danger);color:white;border-color:var(--danger);">↩</button>`}
+             ${tx.type === 'return' ? '<span style="font-size:10px;color:var(--text-muted);">Credit Note</span>' : 
+               tx.type === 'exchange' ? '<span style="font-size:10px;color:#2563eb;">Exchange</span>' : `
+               <button class="action-btn" onclick="openReturnModal('${tx.id}')" title="Return" style="background:var(--danger);color:white;border-color:var(--danger);padding:2px 5px;">↩</button>
+               <button class="action-btn" onclick="openExchangeModal('${tx.id}')" title="Exchange" style="background:#2563eb;color:white;border-color:#2563eb;padding:2px 5px;margin-left:2px;">⇄</button>
+             `}
            </td>
         </tr>
       `).join('');
@@ -1968,14 +1976,285 @@ function confirmReturn() {
   setTimeout(() => viewInvoiceDetails(cnId), 350);
 }
 
- // ============================================================
- // END REPORTS MODULE
- // ============================================================
+// ===== EXCHANGE FUNCTIONALITY =====
+let currentExchangeTx = null;
+let exchangeReturnQtys = {};
+let exchangeNewCart = [];
+
+function openExchangeModal(txId) {
+  const tx = state.transactions.find(t => t.id === txId);
+  if (!tx || (tx.type || 'sale') === 'return') return;
+
+  currentExchangeTx = tx;
+  exchangeReturnQtys = {};
+  exchangeNewCart = [];
+
+  document.getElementById('exchangeModalTitle').textContent = `Exchange for ${tx.id}`;
+  const infoEl = document.getElementById('exchangeInvoiceInfo');
+  infoEl.innerHTML = `Original: <strong>${tx.id}</strong> • ${tx.date} • ${escapeHTML(tx.customer.name)} • Total ${currencySym()}${(tx.total||0).toFixed(2)}`;
+
+  // Render return items
+  renderExchangeReturnItems();
+
+  // Clear new items
+  renderExchangeNewItems();
+
+  // Clear inputs
+  document.getElementById('exchangeAddSearch').value = '';
+  document.getElementById('exchangeReason').value = '';
+  document.getElementById('exchangePaymentMethod').value = 'Cash';
+
+  updateExchangeCalculations();
+  openModal('exchangeModal');
+}
+
+function renderExchangeReturnItems() {
+  if (!currentExchangeTx) return;
+  const container = document.getElementById('exchangeReturnItemsList');
+  container.innerHTML = currentExchangeTx.items.map((item, idx) => {
+    const max = item.qty || 0;
+    const current = exchangeReturnQtys[idx] || 0;
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:5px 8px; border-bottom:1px solid var(--border-color); font-size:13px;">
+        <div style="flex:1;">${escapeHTML(item.name)} <span style="color:var(--text-muted);font-size:11px;">(max ${max})</span></div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button onclick="changeExchangeReturnQty(${idx}, -1)" style="width:22px;height:22px;">−</button>
+          <span style="min-width:24px; text-align:center;">${current}</span>
+          <button onclick="changeExchangeReturnQty(${idx}, 1)" style="width:22px;height:22px;">+</button>
+        </div>
+        <div style="min-width:70px; text-align:right;">${currencySym()}${(item.price * current).toFixed(2)}</div>
+      </div>`;
+  }).join('');
+}
+
+function changeExchangeReturnQty(idx, delta) {
+  const item = currentExchangeTx.items[idx];
+  if (!item) return;
+  let val = (exchangeReturnQtys[idx] || 0) + delta;
+  val = Math.max(0, Math.min(val, item.qty || 0));
+  exchangeReturnQtys[idx] = val;
+  renderExchangeReturnItems();
+  updateExchangeCalculations();
+}
+
+function exchangeAddBySearch() {
+  const searchVal = document.getElementById('exchangeAddSearch').value.trim().toLowerCase();
+  if (!searchVal) return;
+
+  const prod = state.products.find(p =>
+    p.name.toLowerCase().includes(searchVal) ||
+    (p.sku && p.sku.toLowerCase().includes(searchVal))
+  );
+
+  if (!prod) {
+    showToast('Product not found', 'warning');
+    return;
+  }
+  if (prod.stock <= 0) {
+    showToast('Out of stock', 'warning');
+    return;
+  }
+
+  // Add or increase qty
+  const existing = exchangeNewCart.find(i => i.productId === prod.id);
+  if (existing) {
+    if (existing.qty < prod.stock) existing.qty++;
+  } else {
+    exchangeNewCart.push({
+      productId: prod.id,
+      name: prod.name,
+      price: prod.sellingPrice,
+      qty: 1
+    });
+  }
+
+  document.getElementById('exchangeAddSearch').value = '';
+  renderExchangeNewItems();
+  updateExchangeCalculations();
+}
+
+function renderExchangeNewItems() {
+  const container = document.getElementById('exchangeNewItemsList');
+  if (exchangeNewCart.length === 0) {
+    container.innerHTML = '<div style="padding:8px; color:var(--text-muted); font-size:12px;">No replacement items added yet</div>';
+    return;
+  }
+
+  container.innerHTML = exchangeNewCart.map((item, idx) => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 8px; border-bottom:1px solid var(--border-color); font-size:13px;">
+      <div style="flex:1;">${escapeHTML(item.name)}</div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button onclick="changeExchangeNewQty(${idx}, -1)" style="width:20px;height:20px;">−</button>
+        <span style="min-width:22px;text-align:center;">${item.qty}</span>
+        <button onclick="changeExchangeNewQty(${idx}, 1)" style="width:20px;height:20px;">+</button>
+        <button onclick="removeExchangeNewItem(${idx})" style="color:var(--danger);margin-left:4px;">×</button>
+      </div>
+      <div style="min-width:65px; text-align:right;">${currencySym()}${(item.price * item.qty).toFixed(2)}</div>
+    </div>
+  `).join('');
+}
+
+function changeExchangeNewQty(idx, delta) {
+  const item = exchangeNewCart[idx];
+  if (!item) return;
+  const prod = state.products.find(p => p.id === item.productId);
+  let newQty = item.qty + delta;
+  if (newQty < 1) newQty = 1;
+  if (prod && newQty > prod.stock) newQty = prod.stock;
+  item.qty = newQty;
+  renderExchangeNewItems();
+  updateExchangeCalculations();
+}
+
+function removeExchangeNewItem(idx) {
+  exchangeNewCart.splice(idx, 1);
+  renderExchangeNewItems();
+  updateExchangeCalculations();
+}
+
+function updateExchangeCalculations() {
+  if (!currentExchangeTx) return;
+
+  // Return credit
+  let returnCredit = 0;
+  currentExchangeTx.items.forEach((item, idx) => {
+    const q = exchangeReturnQtys[idx] || 0;
+    returnCredit += q * (item.price || 0);
+  });
+
+  // New items total
+  let newTotal = 0;
+  exchangeNewCart.forEach(item => {
+    newTotal += item.price * item.qty;
+  });
+
+  const net = newTotal - returnCredit;
+
+  document.getElementById('exchangeReturnCredit').textContent = `-${currencySym()}${returnCredit.toFixed(2)}`;
+  document.getElementById('exchangeNewTotal').textContent = `${currencySym()}${newTotal.toFixed(2)}`;
+
+  const netEl = document.getElementById('exchangeNetAmount');
+  netEl.textContent = `${net >= 0 ? '+' : ''}${currencySym()}${net.toFixed(2)}`;
+  netEl.style.color = net >= 0 ? 'var(--success)' : 'var(--danger)';
+}
+
+function confirmExchange() {
+  if (!currentExchangeTx) {
+    closeModal('exchangeModal');
+    return;
+  }
+
+  const original = currentExchangeTx;
+  const reason = document.getElementById('exchangeReason').value.trim() || 'Exchange';
+  const method = document.getElementById('exchangePaymentMethod').value;
+
+  // Build returned items
+  let returnedItems = [];
+  let returnCredit = 0;
+  original.items.forEach((item, idx) => {
+    const q = exchangeReturnQtys[idx] || 0;
+    if (q > 0) {
+      returnedItems.push({ productId: item.productId, name: item.name, price: item.price, qty: q });
+      returnCredit += q * item.price;
+    }
+  });
+
+  if (returnedItems.length === 0 && exchangeNewCart.length === 0) {
+    showToast('Please select items to return and/or add replacements', 'warning');
+    return;
+  }
+
+  // Restock returned
+  returnedItems.forEach(ri => {
+    const prod = state.products.find(p => p.id === ri.productId);
+    if (prod) prod.stock = (prod.stock || 0) + ri.qty;
+  });
+
+  // Deduct new items stock
+  exchangeNewCart.forEach(ni => {
+    const prod = state.products.find(p => p.id === ni.productId);
+    if (prod) prod.stock = Math.max(0, (prod.stock || 0) - ni.qty);
+  });
+
+  // Generate ID
+  const prefix = state.settings?.invoicePrefix || 'INV-';
+  let nextNumber = state.settings?.invoiceStartNumber || 1000;
+  const exId = `${prefix}${String(nextNumber).padStart(4, '0')}`;
+  if (!state.settings) state.settings = {};
+  state.settings.invoiceStartNumber = nextNumber + 1;
+
+  const netAmount = (exchangeNewCart.reduce((s, i) => s + i.price * i.qty, 0)) - returnCredit;
+
+  const exchangeTx = {
+    id: exId,
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    customer: { ...original.customer },
+    returnedItems: returnedItems,
+    newItems: [...exchangeNewCart],
+    returnValue: returnCredit,
+    newValue: exchangeNewCart.reduce((s, i) => s + i.price * i.qty, 0),
+    netAmount: netAmount,
+    paymentMethod: method,
+    status: 'Exchange',
+    type: 'exchange',
+    exchangeOf: original.id,
+    reason: reason
+  };
+
+  state.transactions.push(exchangeTx);
+  saveStore();
+
+  closeModal('exchangeModal');
+  currentExchangeTx = null;
+  exchangeReturnQtys = {};
+  exchangeNewCart = [];
+
+  showToast(`Exchange processed. Exchange Note ${exId} created.`, 'success');
+
+  renderReports();
+  renderActiveTab();
+  setTimeout(() => viewInvoiceDetails(exId), 400);
+}
+
+// ============================================================
+// END REPORTS MODULE
+// ============================================================
 
 // INVOICE PREVIEW & RENDER LOGIC (REWRITTEN for clean receipt print)
 function viewInvoiceDetails(txId) {
   const tx = state.transactions.find(t => t.id === txId);
   if (!tx) return;
+
+  if (tx.type === 'exchange') {
+    // Special rendering for exchanges
+    const invoiceArea = document.getElementById('invoicePreviewArea');
+    if (!invoiceArea) return;
+    const currency = state.settings?.defaultCurrency || '₹';
+    let html = `<div style="padding:12px; font-family:monospace; background:#fff; color:#000; max-width:420px; margin:0 auto;">`;
+    html += `<div style="text-align:center; font-weight:bold; font-size:14px;">EXCHANGE NOTE</div>`;
+    html += `<div><strong>${tx.id}</strong> • ${tx.date} ${tx.time || ''}</div>`;
+    html += `<div>Original: ${tx.exchangeOf || ''}</div>`;
+    html += `<div>Customer: ${escapeHTML(tx.customer?.name || '')}</div><hr>`;
+    if (tx.returnedItems?.length) {
+      html += `<div><strong>Returned:</strong></div>`;
+      tx.returnedItems.forEach(i => html += `<div>• ${i.qty}× ${escapeHTML(i.name)} @ ${currency}${i.price}</div>`);
+    }
+    if (tx.newItems?.length) {
+      html += `<div><strong>Received:</strong></div>`;
+      tx.newItems.forEach(i => html += `<div>• ${i.qty}× ${escapeHTML(i.name)} @ ${currency}${i.price}</div>`);
+    }
+    html += `<hr>`;
+    html += `<div>Return Value: -${currency}${(tx.returnValue||0).toFixed(2)}</div>`;
+    html += `<div>New Value: +${currency}${(tx.newValue||0).toFixed(2)}</div>`;
+    html += `<div style="font-weight:bold;">Net: ${tx.netAmount >= 0 ? '+' : ''}${currency}${(tx.netAmount||0).toFixed(2)}</div>`;
+    html += `<div>Settled via: ${tx.paymentMethod}</div>`;
+    if (tx.reason) html += `<div>Reason: ${escapeHTML(tx.reason)}</div>`;
+    html += `</div>`;
+    invoiceArea.innerHTML = html;
+    openModal('invoiceModal');
+    return;
+  }
 
   const invoiceArea = document.getElementById('invoicePreviewArea');
   if (!invoiceArea) return;
