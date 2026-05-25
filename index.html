@@ -497,12 +497,22 @@
             </div>
           </div>
 
-          <!-- KPI Summary Cards -->
-          <div class="stats-grid" id="reportKpiGrid" style="margin-bottom: 16px;">
-            <!-- Populated by JS -->
-          </div>
+           <!-- KPI Summary Cards -->
+           <div class="stats-grid" id="reportKpiGrid" style="margin-bottom: 16px;">
+             <!-- Populated by JS -->
+           </div>
 
-          <!-- Breakdown Sections -->
+           <!-- Returns Summary -->
+           <div class="dashboard-card" style="margin-bottom: 16px;" id="returnsSummaryCard">
+             <div class="card-title-bar">
+               <h3 style="font-size: 15px;">Returns &amp; Refunds Summary</h3>
+             </div>
+             <div id="returnsSummaryContent" style="padding: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; font-size: 13px;">
+               <!-- Populated by JS in renderReports -->
+             </div>
+           </div>
+
+           <!-- Breakdown Sections -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             
             <!-- Payment Method Breakdown -->
@@ -543,13 +553,19 @@
               <div class="table-search-filters">
                 <input type="text" id="reportSearch" class="form-control" placeholder="Search invoice, customer..." oninput="renderReports()" style="max-width: 220px;">
                 
-                <select id="reportMethodFilter" class="select-control" onchange="renderReports()">
-                  <option value="">All Payments</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Card">Card</option>
-                  <option value="UPI">UPI</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                </select>
+                 <select id="reportMethodFilter" class="select-control" onchange="renderReports()">
+                   <option value="">All Payments</option>
+                   <option value="Cash">Cash</option>
+                   <option value="Card">Card</option>
+                   <option value="UPI">UPI</option>
+                   <option value="Bank Transfer">Bank Transfer</option>
+                 </select>
+
+                 <select id="reportTypeFilter" class="select-control" onchange="renderReports()">
+                   <option value="">All Types</option>
+                   <option value="sale">Sales Only</option>
+                   <option value="return">Returns Only</option>
+                 </select>
               </div>
               <div style="color: var(--text-muted); font-size: 12px;" id="reportSummaryLine"></div>
             </div>
@@ -565,10 +581,11 @@
                     <th>Discount</th>
                     <th>Tax</th>
                     <th>Total</th>
-                     <th>Payment</th>
-                     <th style="width: 70px;">View</th>
-                     <th style="width: 70px;">Return</th>
-                   </tr>
+                      <th>Payment</th>
+                      <th>Reason</th>
+                      <th style="width: 70px;">View</th>
+                      <th style="width: 70px;">Return</th>
+                    </tr>
                 </thead>
                 <tbody id="reportTxTableBody">
                   <!-- Dynamically rendered -->

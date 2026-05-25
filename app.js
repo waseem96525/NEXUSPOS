@@ -1544,6 +1544,7 @@ function getReportFilteredTransactions() {
   const to = document.getElementById('reportDateTo')?.value;
   const search = (document.getElementById('reportSearch')?.value || '').toLowerCase();
   const method = document.getElementById('reportMethodFilter')?.value || '';
+  const typeFilter = document.getElementById('reportTypeFilter')?.value || '';
 
   return state.transactions.filter(tx => {
     const txDate = tx.date;
@@ -1553,7 +1554,9 @@ function getReportFilteredTransactions() {
       tx.customer.name.toLowerCase().includes(search) ||
       tx.customer.contact.toLowerCase().includes(search);
     const matchesMethod = !method || tx.paymentMethod === method;
-    return matchesDate && matchesSearch && matchesMethod;
+    const txType = tx.type || 'sale';
+    const matchesType = !typeFilter || txType === typeFilter;
+    return matchesDate && matchesSearch && matchesMethod && matchesType;
   });
 }
 
@@ -1578,15 +1581,17 @@ function setReportQuickRange(days) {
 function resetReportFilters() {
   const fromEl = document.getElementById('reportDateFrom');
   const toEl = document.getElementById('reportDateTo');
-  const searchEl = document.getElementById('reportSearch');
-  const methodEl = document.getElementById('reportMethodFilter');
-
-  if (fromEl) fromEl.value = '';
-  if (toEl) toEl.value = '';
-  if (searchEl) searchEl.value = '';
-  if (methodEl) methodEl.value = '';
-
-  renderReports();
+   const searchEl = document.getElementById('reportSearch');
+   const methodEl = document.getElementById('reportMethodFilter');
+   const typeEl = document.getElementById('reportTypeFilter');
+ 
+   if (fromEl) fromEl.value = '';
+   if (toEl) toEl.value = '';
+   if (searchEl) searchEl.value = '';
+   if (methodEl) methodEl.value = '';
+   if (typeEl) typeEl.value = '';
+ 
+   renderReports();
 }
 
 function exportReportCSV() {
@@ -1675,10 +1680,39 @@ const currency = state.settings?.defaultCurrency || '₹';
          <div class="stat-value" style="font-size:22px;">${currency}${totalTax.toFixed(0)}</div>
          <div class="stat-trend neutral"><span>GST / VAT</span></div>
        </div>
-     `;
-  }
+      `;
+   }
 
-  // === Payment Breakdown ===
+   // === Returns Summary ===
+   const returnsContainer = document.getElementById('returnsSummaryContent');
+   if (returnsContainer) {
+     const returnsInFilter = filtered.filter(t => (t.type || 'sale') === 'return');
+     const returnCount = returnsInFilter.length;
+     const totalRefunded = returnsInFilter.reduce((s, t) => s + Math.abs(t.total || 0), 0);
+     const avgRefund = returnCount > 0 ? totalRefunded / returnCount : 0;
+     const withReason = returnsInFilter.filter(t => t.reason).length;
+
+     returnsContainer.innerHTML = `
+       <div style="background:var(--bg-tertiary);padding:8px 12px;border-radius:6px;">
+         <div style="font-size:11px;color:var(--text-secondary);">Returns in Period</div>
+         <div style="font-size:20px;font-weight:600;">${returnCount}</div>
+       </div>
+       <div style="background:var(--bg-tertiary);padding:8px 12px;border-radius:6px;">
+         <div style="font-size:11px;color:var(--text-secondary);">Total Refunded</div>
+         <div style="font-size:20px;font-weight:600;color:var(--danger);">-${currency}${totalRefunded.toFixed(0)}</div>
+       </div>
+       <div style="background:var(--bg-tertiary);padding:8px 12px;border-radius:6px;">
+         <div style="font-size:11px;color:var(--text-secondary);">Avg Refund</div>
+         <div style="font-size:20px;font-weight:600;">-${currency}${avgRefund.toFixed(0)}</div>
+       </div>
+       <div style="background:var(--bg-tertiary);padding:8px 12px;border-radius:6px;">
+         <div style="font-size:11px;color:var(--text-secondary);">With Reason</div>
+         <div style="font-size:20px;font-weight:600;">${withReason} / ${returnCount}</div>
+       </div>
+     `;
+   }
+
+   // === Payment Breakdown ===
   const paymentTotals = {};
   filtered.forEach(tx => {
     paymentTotals[tx.paymentMethod] = (paymentTotals[tx.paymentMethod] || 0) + tx.total;
@@ -1802,9 +1836,9 @@ catHtml = categoryData.map(c => {
     if (tableBody) {
       tableBody.innerHTML = `
          <tr>
-           <td colspan="10" style="text-align:center; color:var(--text-muted); padding:40px;">
-             No transactions match the current filters.
-           </td>
+            <td colspan="11" style="text-align:center; color:var(--text-muted); padding:40px;">
+              No transactions match the current filters.
+            </td>
          </tr>`;
     }
     return;
@@ -1829,16 +1863,19 @@ if (tableBody) {
          <td>
            <span class="badge ${tx.paymentMethod === 'Cash' ? 'badge-success' : 'badge-warning'}">
              ${tx.paymentMethod}
-           </span>
-         </td>
-          <td>
-            <button class="action-btn view-btn" onclick="viewInvoiceDetails('${tx.id}')" title="View Invoice">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            </button>
+            </span>
           </td>
-          <td>
-            ${tx.type === 'return' ? '<span style="font-size:10px;color:var(--text-muted);">Credit Note</span>' : `<button class="action-btn" onclick="openReturnModal('${tx.id}')" title="Process Return" style="background:var(--danger);color:white;border-color:var(--danger);">↩</button>`}
+          <td style="font-size:11px; color:var(--text-secondary);">
+            ${tx.type === 'return' ? (tx.reason ? escapeHTML(tx.reason) : '<em>—</em>') : '—'}
           </td>
+           <td>
+             <button class="action-btn view-btn" onclick="viewInvoiceDetails('${tx.id}')" title="View Invoice">
+               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+             </button>
+           </td>
+           <td>
+             ${tx.type === 'return' ? '<span style="font-size:10px;color:var(--text-muted);">Credit Note</span>' : `<button class="action-btn" onclick="openReturnModal('${tx.id}')" title="Process Return" style="background:var(--danger);color:white;border-color:var(--danger);">↩</button>`}
+           </td>
         </tr>
       `).join('');
     }
@@ -2042,6 +2079,22 @@ function viewInvoiceDetails(txId) {
   const printBtn = document.getElementById('printInvoiceBtn');
   if (printBtn) {
     printBtn.onclick = () => printReceipt(receiptHTML, currency);
+  }
+
+  // Show linked returns / credit notes for sales
+  if ((tx.type || 'sale') !== 'return') {
+    const linked = state.transactions.filter(r => r.returnOf === tx.id && r.type === 'return');
+    if (linked.length > 0) {
+      const linkDiv = document.createElement('div');
+      linkDiv.style.cssText = 'margin-top:16px; padding:12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:13px;';
+      linkDiv.innerHTML = `<strong style="color:#b91c1c;">Linked Returns (${linked.length})</strong><br>` +
+        linked.map(r => {
+          const amt = Math.abs(r.total || 0).toFixed(2);
+          const reason = r.reason ? ` — ${escapeHTML(r.reason)}` : '';
+          return `• <strong>${r.id}</strong> (${r.date}) — ${currency}${amt}${reason}`;
+        }).join('<br>');
+      invoiceArea.appendChild(linkDiv);
+    }
   }
 
   openModal('invoiceModal');
