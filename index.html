@@ -116,7 +116,7 @@
         <section class="stats-grid">
           <div class="stat-card">
             <div class="stat-header">
-              <span class="stat-title">Total Revenue</span>
+              <span class="stat-title">Net Revenue</span>
               <div class="stat-icon-wrapper success">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -565,9 +565,10 @@
                     <th>Discount</th>
                     <th>Tax</th>
                     <th>Total</th>
-                    <th>Payment</th>
-                    <th style="width: 70px;">View</th>
-                  </tr>
+                     <th>Payment</th>
+                     <th style="width: 70px;">View</th>
+                     <th style="width: 70px;">Return</th>
+                   </tr>
                 </thead>
                 <tbody id="reportTxTableBody">
                   <!-- Dynamically rendered -->
@@ -865,6 +866,47 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" style="width: 100%;" onclick="closeModal('recallCartsModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PROCESS RETURN / CREDIT NOTE -->
+  <div class="modal-overlay" id="returnModal">
+    <div class="modal-card" style="max-width: 620px;">
+      <div class="modal-header">
+        <h3 id="returnModalTitle">Process Return / Credit Note</h3>
+        <button class="modal-close" onclick="closeModal('returnModal')">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 420px; overflow-y: auto;">
+        <div id="returnInvoiceInfo" style="margin-bottom:12px; font-size:13px; background:var(--bg-tertiary); padding:8px 12px; border-radius:6px;"></div>
+        
+        <div style="margin-bottom:8px; font-size:12px; font-weight:600; color:var(--text-secondary);">Select items and quantities to return</div>
+        <div id="returnItemsList" style="border:1px solid var(--border-color); border-radius:6px; padding:4px; margin-bottom:12px; max-height:180px; overflow-y:auto;"></div>
+        
+        <div class="form-group" style="margin-bottom:8px;">
+          <label style="font-size:11px;">Return Reason (optional)</label>
+          <input type="text" id="returnReason" class="form-control" placeholder="Damaged, wrong item, customer change of mind...">
+        </div>
+        
+        <div style="display:flex; gap:12px; align-items:flex-end;">
+          <div style="flex:1;">
+            <label style="font-size:11px; display:block; margin-bottom:2px;">Refund Method</label>
+            <select id="returnRefundMethod" class="select-control">
+              <option value="Cash">Cash</option>
+              <option value="Card">Card (Refund)</option>
+              <option value="UPI">UPI</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+            </select>
+          </div>
+          <div style="flex:1; text-align:right;">
+            <div style="font-size:11px; color:var(--text-secondary);">Total Refund Amount</div>
+            <div id="returnRefundAmount" style="font-size:22px; font-weight:700; color:var(--danger);">-</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeModal('returnModal')">Cancel</button>
+        <button type="button" class="btn btn-primary" style="flex:1;" onclick="confirmReturn()">Confirm Return &amp; Issue Credit Note</button>
       </div>
     </div>
   </div>

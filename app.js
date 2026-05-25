@@ -85,10 +85,14 @@ function initStore() {
           if (p.expiryDate === undefined) p.expiryDate = '';
           if (p.taxRate === undefined) p.taxRate = 18;
           if (p.mrp === undefined) p.mrp = p.sellingPrice || 0;
-        });
-      }
-
-      // Settings migration - ensure all settings exist with defaults
+         });
+       }
+ 
+       if (Array.isArray(state.transactions)) {
+         state.transactions.forEach(t => { if (!t.type) t.type = 'sale'; });
+       }
+ 
+       // Settings migration - ensure all settings exist with defaults
       if (!state.settings) {
         state.settings = {
           shopName: '',
@@ -310,7 +314,7 @@ function renderActiveTab() {
 function renderDashboard() {
   // Calculations
   const todayStr = new Date().toISOString().split('T')[0];
-  const totalRevenue = state.transactions.reduce((sum, tx) => sum + tx.total, 0);
+  const totalRevenue = state.transactions.reduce((sum, tx) => sum + (tx.total || 0), 0);
   const totalSalesCount = state.transactions.length;
   const avgSalesValue = totalSalesCount > 0 ? (totalRevenue / totalSalesCount) : 0;
   
@@ -850,7 +854,7 @@ function processCheckout() {
     paymentMethod: state.paymentMethod,
     tendered: tendered || undefined,
     change: changeDue || undefined,
-    status: 'Paid'
+    status: 'Paid', type: 'sale'
   };
 
   state.transactions.push(newTx);
@@ -1592,10 +1596,11 @@ function exportReportCSV() {
     return;
   }
 
-  const rows = [['Invoice ID', 'Date', 'Customer', 'Contact', 'Subtotal', 'Discount', 'Tax', 'Total', 'Payment Method']];
+  const rows = [['Invoice ID', 'Type', 'Date', 'Customer', 'Contact', 'Subtotal', 'Discount', 'Tax', 'Total', 'Payment Method']];
   filtered.forEach(tx => {
     rows.push([
       tx.id,
+      tx.type === 'return' ? 'RETURN' : 'SALE',
       tx.date,
       tx.customer.name,
       tx.customer.contact,
@@ -1629,24 +1634,26 @@ function renderReports() {
   }
 
   const filtered = getReportFilteredTransactions();
-
-  // === KPIs ===
-  const totalRevenue = filtered.reduce((sum, tx) => sum + tx.total, 0);
-  const txCount = filtered.length;
-  const avgOrder = txCount > 0 ? totalRevenue / txCount : 0;
-  const totalTax = filtered.reduce((sum, tx) => sum + (tx.taxAmount || 0), 0);
+ 
+   // === KPIs ===
+   const salesTotal = filtered.filter(t => (t.type || 'sale') !== 'return').reduce((s, t) => s + (t.total || 0), 0);
+   const returnsTotal = filtered.filter(t => t.type === 'return').reduce((s, t) => s + (t.total || 0), 0);
+   const netRevenue = salesTotal + returnsTotal;
+   const txCount = filtered.length;
+   const avgOrder = txCount > 0 ? netRevenue / txCount : 0;
+   const totalTax = filtered.reduce((sum, tx) => sum + (tx.taxAmount || 0), 0);
 
 const currency = state.settings?.defaultCurrency || '₹';
    const kpiContainer = document.getElementById('reportKpiGrid');
    if (kpiContainer) {
      kpiContainer.innerHTML = `
-       <div class="stat-card">
-         <div class="stat-header">
-           <span class="stat-title">Total Revenue</span>
-         </div>
-         <div class="stat-value" style="font-size:22px;">${currency}${totalRevenue.toLocaleString('en-IN')}</div>
-         <div class="stat-trend neutral"><span>${filtered.length} transactions</span></div>
-       </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Net Revenue</span>
+          </div>
+          <div class="stat-value" style="font-size:22px;">${currency}${netRevenue.toLocaleString('en-IN')}</div>
+          <div class="stat-trend neutral"><span>Sales ${currency}${salesTotal.toFixed(0)} • Returns ${currency}${Math.abs(returnsTotal).toFixed(0)}</span></div>
+        </div>
        <div class="stat-card">
          <div class="stat-header">
            <span class="stat-title">Transactions</span>
@@ -1680,7 +1687,7 @@ const currency = state.settings?.defaultCurrency || '₹';
   const paymentHtml = Object.entries(paymentTotals)
     .sort((a, b) => b[1] - a[1])
     .map(([method, amount]) => {
-      const pct = totalRevenue > 0 ? ((amount / totalRevenue) * 100).toFixed(0) : 0;
+      const pct = netRevenue > 0 ? ((amount / netRevenue) * 100).toFixed(0) : 0;
       return `
         <div style="margin-bottom: 8px;">
           <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;">
@@ -1787,18 +1794,18 @@ catHtml = categoryData.map(c => {
   const tableBody = document.getElementById('reportTxTableBody');
   const summaryLine = document.getElementById('reportSummaryLine');
 
-if (summaryLine) {
-     summaryLine.innerHTML = `${filtered.length} transactions • ${currency}${totalRevenue.toFixed(0)} total`;
-   }
+ if (summaryLine) {
+      summaryLine.innerHTML = `${filtered.length} tx • Net ${currency}${netRevenue.toFixed(0)} (Sales ${currency}${salesTotal.toFixed(0)})`;
+    }
 
   if (filtered.length === 0) {
     if (tableBody) {
       tableBody.innerHTML = `
-        <tr>
-          <td colspan="9" style="text-align:center; color:var(--text-muted); padding:40px;">
-            No transactions match the current filters.
-          </td>
-        </tr>`;
+         <tr>
+           <td colspan="10" style="text-align:center; color:var(--text-muted); padding:40px;">
+             No transactions match the current filters.
+           </td>
+         </tr>`;
     }
     return;
   }
@@ -1824,19 +1831,109 @@ if (tableBody) {
              ${tx.paymentMethod}
            </span>
          </td>
-         <td>
-           <button class="action-btn view-btn" onclick="viewInvoiceDetails('${tx.id}')" title="View Invoice">
-             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-           </button>
-         </td>
-       </tr>
-     `).join('');
-   }
+          <td>
+            <button class="action-btn view-btn" onclick="viewInvoiceDetails('${tx.id}')" title="View Invoice">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </td>
+          <td>
+            ${tx.type === 'return' ? '<span style="font-size:10px;color:var(--text-muted);">Credit Note</span>' : `<button class="action-btn" onclick="openReturnModal('${tx.id}')" title="Process Return" style="background:var(--danger);color:white;border-color:var(--danger);">↩</button>`}
+          </td>
+        </tr>
+      `).join('');
+    }
+ }
+
+let currentReturnTx = null;
+const currencySym = () => state.settings?.defaultCurrency || '₹';
+
+function openReturnModal(txId) {
+  const tx = state.transactions.find(t => t.id === txId);
+  if (!tx || tx.type === 'return') return;
+  currentReturnTx = tx;
+  document.getElementById('returnModalTitle').textContent = `Return for ${tx.id}`;
+  const infoEl = document.getElementById('returnInvoiceInfo');
+  infoEl.innerHTML = `Invoice <strong>${tx.id}</strong> • ${tx.date} • ${escapeHTML(tx.customer.name)} • Original: ${currencySym()}${(tx.total||0).toFixed(2)}`;
+  const itemsContainer = document.getElementById('returnItemsList');
+  itemsContainer.innerHTML = tx.items.map((item, idx) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:13px;">
+      <div style="flex:1;">${escapeHTML(item.name)} <span style="color:var(--text-muted);font-size:11px;">(max ${item.qty})</span></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input type="number" id="returnQty_${idx}" value="0" min="0" max="${item.qty}" style="width:58px;padding:2px 4px;" oninput="updateReturnTotal()">
+        <span style="min-width:68px;text-align:right;">${currencySym()}${(item.price * item.qty).toFixed(2)}</span>
+      </div>
+    </div>`).join('');
+  document.getElementById('returnReason').value = '';
+  document.getElementById('returnRefundMethod').value = 'Cash';
+  updateReturnTotal();
+  openModal('returnModal');
 }
 
-// ============================================================
-// END REPORTS MODULE
-// ============================================================
+function updateReturnTotal() {
+  if (!currentReturnTx) return;
+  let refund = 0;
+  currentReturnTx.items.forEach((item, idx) => {
+    const inp = document.getElementById(`returnQty_${idx}`);
+    if (inp) {
+      const q = Math.min(parseInt(inp.value)||0, item.qty||0);
+      refund += q * (item.price||0);
+    }
+  });
+  const el = document.getElementById('returnRefundAmount');
+  if (el) el.textContent = `-${currencySym()}${refund.toFixed(2)}`;
+}
+
+function confirmReturn() {
+  if (!currentReturnTx) { closeModal('returnModal'); return; }
+  const original = currentReturnTx;
+  const reason = document.getElementById('returnReason').value.trim();
+  const method = document.getElementById('returnRefundMethod').value;
+  let returnedItems = [];
+  let refundTotal = 0;
+  let returnedSubtotal = 0;
+  original.items.forEach((item, idx) => {
+    const inp = document.getElementById(`returnQty_${idx}`);
+    if (!inp) return;
+    let q = parseInt(inp.value) || 0;
+    q = Math.max(0, Math.min(q, item.qty || 0));
+    if (q > 0) {
+      returnedItems.push({ productId: item.productId, name: item.name, price: item.price, qty: q, note: item.note || '' });
+      refundTotal += q * item.price;
+      returnedSubtotal += q * item.price;
+    }
+  });
+  if (returnedItems.length === 0) {
+    showToast('Select at least one item quantity to return.', 'warning');
+    return;
+  }
+  returnedItems.forEach(ri => {
+    const prod = state.products.find(p => p.id === ri.productId);
+    if (prod) prod.stock = (prod.stock || 0) + ri.qty;
+  });
+  const prefix = state.settings?.invoicePrefix || 'INV-';
+  let nextNumber = state.settings?.invoiceStartNumber || 1000;
+  const cnId = `${prefix}${String(nextNumber).padStart(4,'0')}`;
+  if (!state.settings) state.settings = {};
+  state.settings.invoiceStartNumber = nextNumber + 1;
+  const returnTx = {
+    id: cnId, date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),
+    customer: {...original.customer}, items: returnedItems, subtotal: returnedSubtotal, taxRate:0, taxAmount:0, discountRate:0, discountAmount:0,
+    serviceRate:0, serviceAmount:0, total: -refundTotal, paymentMethod: `Refund - ${method}`, status: 'Refunded',
+    type: 'return', returnOf: original.id, reason: reason || undefined
+  };
+  state.transactions.push(returnTx);
+  saveStore();
+  closeModal('returnModal');
+  currentReturnTx = null;
+  showToast(`Return processed. Credit Note ${cnId} issued. Stock restocked.`, 'success');
+  renderReports();
+  renderActiveTab();
+  setTimeout(() => viewInvoiceDetails(cnId), 350);
+}
+
+ // ============================================================
+ // END REPORTS MODULE
+ // ============================================================
 
 // INVOICE PREVIEW & RENDER LOGIC (REWRITTEN for clean receipt print)
 function viewInvoiceDetails(txId) {
@@ -1907,10 +2004,10 @@ function viewInvoiceDetails(txId) {
         ${(shopPhone || shopGST) ? `<div class="receipt-sub">${[shopPhone, shopGST].filter(Boolean).join(' • ')}</div>` : ''}
       </div>
 
-      <div class="receipt-meta">
-        <div><strong>${escapeHTML(tx.id)}</strong></div>
-        <div>${dateTime}</div>
-      </div>
+       <div class="receipt-meta">
+         <div><strong>${escapeHTML(tx.id)}</strong> ${tx.type === 'return' ? '<span style="color:#dc2626;font-size:11px;font-weight:600;">(CREDIT NOTE)</span>' : ''}</div>
+         <div>${dateTime}</div>
+       </div>
 
       <div class="receipt-divider"></div>
 
@@ -1929,7 +2026,7 @@ function viewInvoiceDetails(txId) {
       <div class="receipt-divider"></div>
 
       <div class="receipt-totals">
-        ${totalsHTML}
+        ${tx.type === 'return' ? `<div class="receipt-total-row grand" style="color:#dc2626;"><span>CREDIT NOTE TOTAL</span><span>${currency}${(tx.total || 0).toFixed(2)}</span></div>` : totalsHTML}
       </div>
 
       <div class="receipt-payment">${payHTML}</div>
