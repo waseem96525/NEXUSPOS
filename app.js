@@ -40,7 +40,8 @@ let state = {
     invoiceStartNumber: 1000,
     defaultCurrency: '₹',
     footerNote: 'Thank you for your business!',
-    logoutEnabled: true
+    logoutEnabled: true,
+    taxEnabledByDefault: true
   }
 };
 
@@ -99,51 +100,55 @@ function initStore() {
           invoicePrefix: 'INV-',
           invoiceStartNumber: 1000,
           defaultCurrency: '₹',
-          footerNote: 'Thank you for your business!',
-          logoutEnabled: true
-        };
-      } else {
-        if (state.settings.shopName === undefined) state.settings.shopName = '';
-        if (state.settings.shopAddress === undefined) state.settings.shopAddress = '';
-        if (state.settings.shopPhone === undefined) state.settings.shopPhone = '';
-        if (state.settings.shopEmail === undefined) state.settings.shopEmail = '';
-        if (state.settings.shopGSTIN === undefined) state.settings.shopGSTIN = '';
-        if (state.settings.shopOwner === undefined) state.settings.shopOwner = '';
-        if (state.settings.invoicePrefix === undefined) state.settings.invoicePrefix = 'INV-';
-        if (state.settings.invoiceStartNumber === undefined) state.settings.invoiceStartNumber = 1000;
-        if (state.settings.defaultCurrency === undefined) state.settings.defaultCurrency = '₹';
-        if (state.settings.footerNote === undefined) state.settings.footerNote = 'Thank you for your business!';
-        if (state.settings.logoutEnabled === undefined) state.settings.logoutEnabled = true;
-      }
-
-      // Settings migration - ensure all settings exist with defaults
-      if (!state.settings) {
-        state.settings = {
-          shopName: '',
-          shopAddress: '',
-          shopPhone: '',
-          shopEmail: '',
-          shopGSTIN: '',
-          shopOwner: '',
-          invoicePrefix: 'INV-',
-          invoiceStartNumber: 1000,
-          defaultCurrency: '₹',
-          footerNote: 'Thank you for your business!',
-          logoutEnabled: true
-        };
-      } else {
-        if (state.settings.shopName === undefined) state.settings.shopName = '';
-        if (state.settings.shopAddress === undefined) state.settings.shopAddress = '';
-        if (state.settings.shopPhone === undefined) state.settings.shopPhone = '';
-        if (state.settings.shopEmail === undefined) state.settings.shopEmail = '';
-        if (state.settings.shopGSTIN === undefined) state.settings.shopGSTIN = '';
-        if (state.settings.shopOwner === undefined) state.settings.shopOwner = '';
-        if (state.settings.invoicePrefix === undefined) state.settings.invoicePrefix = 'INV-';
-        if (state.settings.invoiceStartNumber === undefined) state.settings.invoiceStartNumber = 1000;
-        if (state.settings.defaultCurrency === undefined) state.settings.defaultCurrency = '₹';
-        if (state.settings.footerNote === undefined) state.settings.footerNote = 'Thank you for your business!';
-        if (state.settings.logoutEnabled === undefined) state.settings.logoutEnabled = true;
-      }
+           footerNote: 'Thank you for your business!',
+           logoutEnabled: true,
+           taxEnabledByDefault: true
+         };
+       } else {
+         if (state.settings.shopName === undefined) state.settings.shopName = '';
+         if (state.settings.shopAddress === undefined) state.settings.shopAddress = '';
+         if (state.settings.shopPhone === undefined) state.settings.shopPhone = '';
+         if (state.settings.shopEmail === undefined) state.settings.shopEmail = '';
+         if (state.settings.shopGSTIN === undefined) state.settings.shopGSTIN = '';
+         if (state.settings.shopOwner === undefined) state.settings.shopOwner = '';
+         if (state.settings.invoicePrefix === undefined) state.settings.invoicePrefix = 'INV-';
+         if (state.settings.invoiceStartNumber === undefined) state.settings.invoiceStartNumber = 1000;
+         if (state.settings.defaultCurrency === undefined) state.settings.defaultCurrency = '₹';
+         if (state.settings.footerNote === undefined) state.settings.footerNote = 'Thank you for your business!';
+         if (state.settings.logoutEnabled === undefined) state.settings.logoutEnabled = true;
+         if (state.settings.taxEnabledByDefault === undefined) state.settings.taxEnabledByDefault = true;
+       }
+ 
+       // Settings migration - ensure all settings exist with defaults
+       if (!state.settings) {
+         state.settings = {
+           shopName: '',
+           shopAddress: '',
+           shopPhone: '',
+           shopEmail: '',
+           shopGSTIN: '',
+           shopOwner: '',
+           invoicePrefix: 'INV-',
+           invoiceStartNumber: 1000,
+           defaultCurrency: '₹',
+           footerNote: 'Thank you for your business!',
+           logoutEnabled: true,
+           taxEnabledByDefault: true
+         };
+       } else {
+         if (state.settings.shopName === undefined) state.settings.shopName = '';
+         if (state.settings.shopAddress === undefined) state.settings.shopAddress = '';
+         if (state.settings.shopPhone === undefined) state.settings.shopPhone = '';
+         if (state.settings.shopEmail === undefined) state.settings.shopEmail = '';
+         if (state.settings.shopGSTIN === undefined) state.settings.shopGSTIN = '';
+         if (state.settings.shopOwner === undefined) state.settings.shopOwner = '';
+         if (state.settings.invoicePrefix === undefined) state.settings.invoicePrefix = 'INV-';
+         if (state.settings.invoiceStartNumber === undefined) state.settings.invoiceStartNumber = 1000;
+         if (state.settings.defaultCurrency === undefined) state.settings.defaultCurrency = '₹';
+         if (state.settings.footerNote === undefined) state.settings.footerNote = 'Thank you for your business!';
+         if (state.settings.logoutEnabled === undefined) state.settings.logoutEnabled = true;
+         if (state.settings.taxEnabledByDefault === undefined) state.settings.taxEnabledByDefault = true;
+       }
     } catch (e) {
       console.error("Failed to parse stored state, using defaults.", e);
       loadDefaults();
@@ -253,6 +258,7 @@ function loadShopSettings() {
   if (document.getElementById('defaultCurrency')) document.getElementById('defaultCurrency').value = settings.defaultCurrency || '₹';
   if (document.getElementById('footerNote')) document.getElementById('footerNote').value = settings.footerNote || 'Thank you for your business!';
   if (document.getElementById('logoutEnabled')) document.getElementById('logoutEnabled').checked = settings.logoutEnabled !== false;
+  if (document.getElementById('taxEnabledByDefault')) document.getElementById('taxEnabledByDefault').checked = settings.taxEnabledByDefault !== false;
 }
 
 function saveShopSettings() {
@@ -268,6 +274,7 @@ function saveShopSettings() {
   settings.defaultCurrency = document.getElementById('defaultCurrency')?.value || '₹';
   settings.footerNote = document.getElementById('footerNote')?.value || 'Thank you for your business!';
   settings.logoutEnabled = document.getElementById('logoutEnabled')?.checked || false;
+  settings.taxEnabledByDefault = document.getElementById('taxEnabledByDefault')?.checked !== false;
   state.settings = settings;
   saveStore();
   const statusEl = document.getElementById('settingsSaveStatus');
@@ -664,7 +671,8 @@ function renderCart() {
   const discountAmount = subtotal * (discountRate / 100);
   
   const taxRateInput = document.getElementById('cartTaxRate');
-  const taxRate = taxRateInput ? parseFloat(taxRateInput.value) || 0 : 0;
+  const taxChk = document.getElementById('applyTax');
+  const taxRate = (taxChk && !taxChk.checked) ? 0 : (taxRateInput ? parseFloat(taxRateInput.value) || 0 : 0);
   const taxAmount = (subtotal - discountAmount) * (taxRate / 100);
 
   const serviceRateInput = document.getElementById('serviceFeeRate');
@@ -733,7 +741,10 @@ function setDiscountPreset(val) {
 
 function setTaxPreset(val) {
   const inp = document.getElementById('cartTaxRate');
-  if (inp) { inp.value = val; renderCart(); }
+  if (inp) { inp.value = val; }
+  const chk = document.getElementById('applyTax');
+  if (chk && val > 0) chk.checked = true;
+  renderCart();
 }
 
 function quickAddBySku() {
@@ -804,7 +815,9 @@ function processCheckout() {
   const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const discountRate = parseFloat(document.getElementById('cartDiscountRate').value) || 0;
   const discountAmount = subtotal * (discountRate / 100);
-  const taxRate = parseFloat(document.getElementById('cartTaxRate').value) || 0;
+  const taxRateInput = document.getElementById('cartTaxRate');
+  const taxChk = document.getElementById('applyTax');
+  const taxRate = (taxChk && !taxChk.checked) ? 0 : (taxRateInput ? parseFloat(taxRateInput.value) || 0 : 0);
   const taxAmount = (subtotal - discountAmount) * (taxRate / 100);
   const serviceRate = parseFloat(document.getElementById('serviceFeeRate')?.value) || 0;
   const serviceAmount = (subtotal - discountAmount) * (serviceRate / 100);
@@ -851,6 +864,9 @@ function processCheckout() {
   if (document.getElementById('cartTaxRate')) document.getElementById('cartTaxRate').value = 18;
   if (document.getElementById('serviceFeeRate')) document.getElementById('serviceFeeRate').value = 0;
   if (document.getElementById('cashTendered')) document.getElementById('cashTendered').value = '';
+  const postChk = document.getElementById('applyTax');
+  const taxDefPost = state.settings ? (state.settings.taxEnabledByDefault !== false) : true;
+  if (postChk) postChk.checked = taxDefPost;
 
   saveStore();
   showToast(`Checkout successful! Invoice ${transactionId} generated.`, 'success');
@@ -2083,6 +2099,7 @@ function holdCurrentCart() {
     },
     discountRate: parseFloat(document.getElementById('cartDiscountRate')?.value) || 0,
     taxRate: parseFloat(document.getElementById('cartTaxRate')?.value) || 18,
+    applyTax: document.getElementById('applyTax') ? document.getElementById('applyTax').checked : true,
     serviceRate: parseFloat(document.getElementById('serviceFeeRate')?.value) || 0,
     paymentMethod: state.paymentMethod || 'Cash'
   };
@@ -2096,6 +2113,9 @@ function holdCurrentCart() {
     const el = document.getElementById(id);
     if (el) el.value = (id.includes('Rate') ? (id === 'cartTaxRate' ? '18' : '0') : '');
   });
+  const taxChk = document.getElementById('applyTax');
+  const taxDefHold = state.settings ? (state.settings.taxEnabledByDefault !== false) : true;
+  if (taxChk) taxChk.checked = taxDefHold;
 
   saveStore();
   renderActiveTab();
@@ -2143,6 +2163,8 @@ function recallHeldCart(index) {
   setVal('cartDiscountRate', held.discountRate || 0);
   setVal('cartTaxRate', held.taxRate || 18);
   setVal('serviceFeeRate', held.serviceRate || 0);
+  const taxChk = document.getElementById('applyTax');
+  if (taxChk) taxChk.checked = held.applyTax !== false;
 
   state.paymentMethod = held.paymentMethod || 'Cash';
 
@@ -2208,8 +2230,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initStore();
   initTheme();
   initNavigation();
-  
-  // Render Dashboard by default
+  const taxDef = state.settings ? (state.settings.taxEnabledByDefault !== false) : true;
+  const taxChkInit = document.getElementById('applyTax');
+  if (taxChkInit) taxChkInit.checked = taxDef;
   renderDashboard();
 
   // Attach global click event to dismiss modals on overlay click
