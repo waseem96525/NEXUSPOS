@@ -29,6 +29,8 @@ let state = {
   selectedProductId: null,
   activeTab: 'dashboard',
   paymentMethod: 'Cash',
+  suppliers: [],
+  purchases: [],
   settings: {
     shopName: '',
     shopAddress: '',
@@ -91,6 +93,9 @@ function initStore() {
        if (Array.isArray(state.transactions)) {
          state.transactions.forEach(t => { if (!t.type) t.type = 'sale'; });
        }
+
+       if (!Array.isArray(state.suppliers)) state.suppliers = [];
+       if (!Array.isArray(state.purchases)) state.purchases = [];
  
        // Settings migration - ensure all settings exist with defaults
       if (!state.settings) {
@@ -306,6 +311,12 @@ function renderActiveTab() {
       break;
     case 'reports':
       renderReports();
+      break;
+    case 'suppliers':
+      renderSuppliers();
+      break;
+    case 'purchases':
+      renderPurchases();
       break;
   }
 }
@@ -2218,7 +2229,497 @@ function confirmExchange() {
 }
 
 // ============================================================
-// END REPORTS MODULE
+// SUPPLIERS & PURCHASES MODULE
+// ============================================================
+
+function renderSuppliers() {
+  const tbody = document.getElementById('suppliersTableBody');
+  const search = (document.getElementById('supplierSearch')?.value || '').toLowerCase();
+
+  let list = state.suppliers || [];
+  if (search) {
+    list = list.filter(s => 
+      s.name.toLowerCase().includes(search) || 
+      (s.contact && s.contact.toLowerCase().includes(search)) ||
+      (s.phone && s.phone.includes(search))
+    );
+  }
+
+  if (!tbody) return;
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:30px;">No suppliers found. Add your first supplier.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(sup => {
+    const outstanding = calculateSupplierOutstanding(sup.id);
+    return `
+      <tr>
+        <td><strong>${escapeHTML(sup.name)}</strong></td>
+        <td>${escapeHTML(sup.contact || '-')}</td>
+        <td>${sup.phone || '-'}</td>
+        <td>${sup.gstin || '-'}</td>
+        <td style="color:${outstanding > 0 ? 'var(--danger)' : 'var(--success)'};">${currencySym()}${outstanding.toFixed(0)}</td>
+        <td>
+          <button class="action-btn" onclick="openSupplierModal('${sup.id}')" title="Edit">✎</button>
+          <button class="action-btn" onclick="showSupplierPurchaseReport('${sup.id}')" title="View Purchases Report">📊</button>
+          <button class="action-btn" onclick="deleteSupplier('${sup.id}')" title="Delete" style="color:var(--danger);">×</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function calculateSupplierOutstanding(supplierId) {
+  const supPurchases = (state.purchases || []).filter(p => p.supplierId === supplierId);
+  return supPurchases.reduce((sum, p) => sum + (p.balanceDue || 0), 0);
+}
+
+function openSupplierModal(supId = null) {
+  const modal = document.getElementById('supplierModal');
+  const title = document.getElementById('supplierModalTitle');
+
+  // Clear form
+  ['supplierId', 'suppName', 'suppContact', 'suppPhone', 'suppEmail', 'suppAddress', 'suppGSTIN', 'suppOpeningBalance', 'suppNotes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  if (supId) {
+    const sup = state.suppliers.find(s => s.id === supId);
+    if (sup) {
+      title.textContent = 'Edit Supplier';
+      document.getElementById('supplierId').value = sup.id;
+      document.getElementById('suppName').value = sup.name || '';
+      document.getElementById('suppContact').value = sup.contact || '';
+      document.getElementById('suppPhone').value = sup.phone || '';
+      document.getElementById('suppEmail').value = sup.email || '';
+      document.getElementById('suppAddress').value = sup.address || '';
+      document.getElementById('suppGSTIN').value = sup.gstin || '';
+      document.getElementById('suppOpeningBalance').value = sup.openingBalance || 0;
+      document.getElementById('suppNotes').value = sup.notes || '';
+    }
+  } else {
+    title.textContent = 'Add Supplier';
+    document.getElementById('suppOpeningBalance').value = '0';
+  }
+
+  openModal('supplierModal');
+}
+
+function saveSupplier() {
+  const id = document.getElementById('supplierId').value;
+  const name = document.getElementById('suppName').value.trim();
+
+  if (!name) {
+    showToast('Supplier name is required', 'warning');
+    return;
+  }
+
+  const supplierData = {
+    id: id || 'sup_' + Date.now(),
+    name: name,
+    contact: document.getElementById('suppContact').value.trim(),
+    phone: document.getElementById('suppPhone').value.trim(),
+    email: document.getElementById('suppEmail').value.trim(),
+    address: document.getElementById('suppAddress').value.trim(),
+    gstin: document.getElementById('suppGSTIN').value.trim(),
+    openingBalance: parseFloat(document.getElementById('suppOpeningBalance').value) || 0,
+    notes: document.getElementById('suppNotes').value.trim(),
+    createdAt: id ? undefined : new Date().toISOString()
+  };
+
+  if (!state.suppliers) state.suppliers = [];
+
+  if (id) {
+    const idx = state.suppliers.findIndex(s => s.id === id);
+    if (idx !== -1) state.suppliers[idx] = { ...state.suppliers[idx], ...supplierData };
+  } else {
+    state.suppliers.push(supplierData);
+  }
+
+  saveStore();
+  closeModal('supplierModal');
+  renderSuppliers();
+  showToast('Supplier saved successfully', 'success');
+}
+
+function deleteSupplier(supId) {
+  if (!confirm('Delete this supplier? Existing purchases will remain.')) return;
+  state.suppliers = state.suppliers.filter(s => s.id !== supId);
+  saveStore();
+  renderSuppliers();
+}
+
+// ===== PURCHASES =====
+
+let purchaseItemRows = [];
+
+function renderPurchases() {
+  const tbody = document.getElementById('purchasesTableBody');
+  const search = (document.getElementById('purchaseSearch')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('purchaseStatusFilter')?.value || '';
+  const supplierFilter = document.getElementById('purchaseSupplierFilter')?.value || '';
+
+  let list = state.purchases || [];
+  if (search) {
+    list = list.filter(p => {
+      const sup = state.suppliers.find(s => s.id === p.supplierId);
+      return (sup && sup.name.toLowerCase().includes(search)) || 
+             (p.ref && p.ref.toLowerCase().includes(search));
+    });
+  }
+
+  if (statusFilter) {
+    list = list.filter(p => {
+      const due = p.balanceDue || 0;
+      if (statusFilter === 'paid') return due <= 0;
+      if (statusFilter === 'partial') return due > 0 && (p.amountPaid || 0) > 0;
+      if (statusFilter === 'due') return due > 0;
+      return true;
+    });
+  }
+
+  if (supplierFilter) {
+    list = list.filter(p => p.supplierId === supplierFilter);
+  }
+
+  // Update summary cards
+  updatePurchaseSummary(list);
+
+  // Populate supplier filter if empty
+  const supFilterEl = document.getElementById('purchaseSupplierFilter');
+  if (supFilterEl && supFilterEl.options.length <= 1) {
+    supFilterEl.innerHTML = '<option value="">All Suppliers</option>';
+    (state.suppliers || []).forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      supFilterEl.appendChild(opt);
+    });
+  }
+
+  // Update supplier-wise summary
+  renderSupplierPurchaseSummary();
+
+  if (!tbody) return;
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:30px;">No purchases recorded yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(p => {
+    const sup = state.suppliers.find(s => s.id === p.supplierId);
+    const statusColor = p.balanceDue > 0 ? 'var(--danger)' : 'var(--success)';
+    return `
+      <tr>
+        <td>${p.date}</td>
+        <td><strong>${p.ref || '-'}</strong></td>
+        <td>${sup ? escapeHTML(sup.name) : 'Unknown'}</td>
+        <td>${p.items ? p.items.length : 0} items</td>
+        <td>${currencySym()}${(p.totalAmount || 0).toFixed(2)}</td>
+        <td>${currencySym()}${(p.amountPaid || 0).toFixed(2)}</td>
+        <td style="color:${statusColor}; font-weight:600;">${currencySym()}${(p.balanceDue || 0).toFixed(2)}</td>
+        <td><span class="badge">${p.paymentMode || '-'}</span></td>
+        <td>
+          <button class="action-btn" onclick="viewPurchase('${p.id}')" title="View">👁</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function updatePurchaseSummary(filteredPurchases) {
+  const all = state.purchases || [];
+  const total = all.reduce((s, p) => s + (p.totalAmount || 0), 0);
+  const paid = all.reduce((s, p) => s + (p.amountPaid || 0), 0);
+  const due = all.reduce((s, p) => s + (p.balanceDue || 0), 0);
+
+  const elTotal = document.getElementById('purchTotalAmount');
+  const elPaid = document.getElementById('purchTotalPaid');
+  const elDue = document.getElementById('purchOutstanding');
+  const elCount = document.getElementById('purchCount');
+
+  if (elTotal) elTotal.textContent = `${currencySym()}${total.toFixed(0)}`;
+  if (elPaid) elPaid.textContent = `${currencySym()}${paid.toFixed(0)}`;
+  if (elDue) elDue.textContent = `${currencySym()}${due.toFixed(0)}`;
+  if (elCount) elCount.textContent = `${all.length} purchases`;
+}
+
+function openPurchaseModal() {
+  // Reset
+  purchaseItemRows = [];
+  document.getElementById('purchaseItemsContainer').innerHTML = '';
+  document.getElementById('purchaseTotal').value = '0.00';
+  document.getElementById('purchasePaid').value = '0';
+  document.getElementById('purchaseBalance').value = '0.00';
+  document.getElementById('purchaseRef').value = '';
+  document.getElementById('purchaseNotes').value = '';
+
+  // Set today's date
+  const dateEl = document.getElementById('purchaseDate');
+  if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+
+  // Populate suppliers
+  const supSelect = document.getElementById('purchaseSupplier');
+  supSelect.innerHTML = '<option value="">Select Supplier</option>';
+  (state.suppliers || []).forEach(sup => {
+    const opt = document.createElement('option');
+    opt.value = sup.id;
+    opt.textContent = sup.name;
+    supSelect.appendChild(opt);
+  });
+
+  // Add first item row
+  addPurchaseItemRow();
+
+  openModal('purchaseModal');
+}
+
+function addPurchaseItemRow() {
+  const container = document.getElementById('purchaseItemsContainer');
+  const rowId = 'row_' + Date.now();
+
+  const row = document.createElement('div');
+  row.id = rowId;
+  row.style.cssText = 'display:grid; grid-template-columns: 2.2fr 1fr 1fr 1fr 30px; gap:8px; align-items:center; margin-bottom:8px;';
+
+  row.innerHTML = `
+    <select class="form-control purchase-product" onchange="updatePurchaseTotals()">
+      <option value="">Select Product</option>
+      ${state.products.map(p => `<option value="${p.id}">${escapeHTML(p.name)} (Stock: ${p.stock})</option>`).join('')}
+    </select>
+    <input type="number" class="form-control purchase-qty" placeholder="Qty" value="1" min="1" oninput="updatePurchaseTotals()">
+    <input type="number" class="form-control purchase-cost" placeholder="Unit Cost" value="0" step="0.01" oninput="updatePurchaseTotals()">
+    <input type="text" class="form-control purchase-line-total" value="0.00" readonly style="background:var(--bg-tertiary);">
+    <button type="button" onclick="removePurchaseItemRow('${rowId}')" style="color:var(--danger); font-size:18px;">×</button>
+  `;
+
+  container.appendChild(row);
+  updatePurchaseTotals();
+}
+
+function removePurchaseItemRow(rowId) {
+  const row = document.getElementById(rowId);
+  if (row) row.remove();
+  updatePurchaseTotals();
+}
+
+function updatePurchaseTotals() {
+  const container = document.getElementById('purchaseItemsContainer');
+  let grandTotal = 0;
+
+  Array.from(container.children).forEach(row => {
+    const qtyEl = row.querySelector('.purchase-qty');
+    const costEl = row.querySelector('.purchase-cost');
+    const totalEl = row.querySelector('.purchase-line-total');
+
+    const qty = parseFloat(qtyEl?.value) || 0;
+    const cost = parseFloat(costEl?.value) || 0;
+    const lineTotal = qty * cost;
+
+    if (totalEl) totalEl.value = lineTotal.toFixed(2);
+    grandTotal += lineTotal;
+  });
+
+  const totalEl = document.getElementById('purchaseTotal');
+  if (totalEl) totalEl.value = grandTotal.toFixed(2);
+
+  updatePurchaseBalance();
+}
+
+function updatePurchaseBalance() {
+  const total = parseFloat(document.getElementById('purchaseTotal').value) || 0;
+  const paid = parseFloat(document.getElementById('purchasePaid').value) || 0;
+  const balance = Math.max(0, total - paid);
+
+  const balEl = document.getElementById('purchaseBalance');
+  if (balEl) balEl.value = balance.toFixed(2);
+}
+
+function savePurchase() {
+  const supplierId = document.getElementById('purchaseSupplier').value;
+  if (!supplierId) {
+    showToast('Please select a supplier', 'warning');
+    return;
+  }
+
+  const date = document.getElementById('purchaseDate').value || new Date().toISOString().split('T')[0];
+  const ref = document.getElementById('purchaseRef').value.trim();
+  const paid = parseFloat(document.getElementById('purchasePaid').value) || 0;
+  const paymentMode = document.getElementById('purchasePaymentMode').value;
+  const notes = document.getElementById('purchaseNotes').value.trim();
+
+  // Collect items
+  const container = document.getElementById('purchaseItemsContainer');
+  const items = [];
+  let totalAmount = 0;
+
+  Array.from(container.children).forEach(row => {
+    const prodId = row.querySelector('.purchase-product')?.value;
+    const qty = parseFloat(row.querySelector('.purchase-qty')?.value) || 0;
+    const cost = parseFloat(row.querySelector('.purchase-cost')?.value) || 0;
+
+    if (prodId && qty > 0) {
+      const prod = state.products.find(p => p.id === prodId);
+      if (prod) {
+        items.push({
+          productId: prodId,
+          name: prod.name,
+          qty: qty,
+          unitCost: cost,
+          lineTotal: qty * cost
+        });
+        totalAmount += qty * cost;
+
+        // Update stock immediately
+        prod.stock = (prod.stock || 0) + qty;
+      }
+    }
+  });
+
+  if (items.length === 0) {
+    showToast('Please add at least one item', 'warning');
+    return;
+  }
+
+  const balanceDue = Math.max(0, totalAmount - paid);
+
+  const purchase = {
+    id: 'pur_' + Date.now(),
+    date: date,
+    supplierId: supplierId,
+    ref: ref || null,
+    items: items,
+    totalAmount: totalAmount,
+    amountPaid: paid,
+    balanceDue: balanceDue,
+    paymentMode: paymentMode,
+    notes: notes,
+    createdAt: new Date().toISOString()
+  };
+
+  if (!state.purchases) state.purchases = [];
+  state.purchases.push(purchase);
+
+  saveStore();
+  closeModal('purchaseModal');
+
+  showToast(`Purchase recorded. Stock updated for ${items.length} item(s).`, 'success');
+
+  renderPurchases();
+  renderInventory(); // refresh stock
+  renderActiveTab();
+}
+
+function viewPurchase(purchaseId) {
+  const p = (state.purchases || []).find(x => x.id === purchaseId);
+  if (!p) return;
+
+  const sup = state.suppliers.find(s => s.id === p.supplierId);
+
+  let msg = `Purchase on ${p.date}\n`;
+  msg += `Supplier: ${sup ? sup.name : 'Unknown'}\n`;
+  msg += `Total: ${currencySym()}${p.totalAmount.toFixed(2)}\n`;
+  msg += `Paid: ${currencySym()}${p.amountPaid.toFixed(2)}\n`;
+  msg += `Balance Due: ${currencySym()}${p.balanceDue.toFixed(2)}\n`;
+  msg += `Mode: ${p.paymentMode}\n\nItems:\n`;
+
+  (p.items || []).forEach(i => {
+    msg += `• ${i.qty} × ${i.name} @ ${currencySym()}${i.unitCost} = ${currencySym()}${i.lineTotal.toFixed(2)}\n`;
+  });
+
+  if (p.notes) msg += `\nNotes: ${p.notes}`;
+
+  alert(msg); // Simple for now. Can be improved to a nice modal later.
+}
+
+// ===== SUPPLIER-WISE PURCHASE REPORTS =====
+
+function renderSupplierPurchaseSummary() {
+  const tbody = document.getElementById('supplierPurchaseSummaryBody');
+  if (!tbody) return;
+
+  const suppliers = state.suppliers || [];
+  if (suppliers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">No suppliers yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = suppliers.map(sup => {
+    const supPurchases = (state.purchases || []).filter(p => p.supplierId === sup.id);
+    const count = supPurchases.length;
+    const totalPurchased = supPurchases.reduce((s, p) => s + (p.totalAmount || 0), 0);
+    const totalPaid = supPurchases.reduce((s, p) => s + (p.amountPaid || 0), 0);
+    const outstanding = supPurchases.reduce((s, p) => s + (p.balanceDue || 0), 0);
+
+    return `
+      <tr>
+        <td><strong>${escapeHTML(sup.name)}</strong></td>
+        <td>${count}</td>
+        <td>${currencySym()}${totalPurchased.toFixed(0)}</td>
+        <td>${currencySym()}${totalPaid.toFixed(0)}</td>
+        <td style="color:${outstanding > 0 ? 'var(--danger)' : 'var(--success)'};">${currencySym()}${outstanding.toFixed(0)}</td>
+        <td>
+          <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="showSupplierPurchaseReport('${sup.id}')">View Details</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function showSupplierPurchaseReport(supplierId) {
+  const sup = (state.suppliers || []).find(s => s.id === supplierId);
+  if (!sup) return;
+
+  const purchases = (state.purchases || []).filter(p => p.supplierId === supplierId);
+
+  const totalPurchased = purchases.reduce((s, p) => s + (p.totalAmount || 0), 0);
+  const totalPaid = purchases.reduce((s, p) => s + (p.amountPaid || 0), 0);
+  const outstanding = purchases.reduce((s, p) => s + (p.balanceDue || 0), 0);
+
+  // Set title and summary
+  document.getElementById('supplierReportTitle').textContent = `Purchase Report - ${sup.name}`;
+  document.getElementById('supplierReportSummary').innerHTML = `
+    <strong>${sup.name}</strong> &nbsp;|&nbsp; 
+    Total Purchases: <strong>${currencySym()}${totalPurchased.toFixed(2)}</strong> &nbsp;|&nbsp; 
+    Paid: <strong>${currencySym()}${totalPaid.toFixed(2)}</strong> &nbsp;|&nbsp; 
+    Outstanding: <strong style="color:${outstanding > 0 ? 'var(--danger)' : 'var(--success)'}">${currencySym()}${outstanding.toFixed(2)}</strong>
+    <br>
+    <small>${sup.phone || ''} ${sup.email ? '• ' + sup.email : ''}</small>
+  `;
+
+  // Populate table
+  const tbody = document.getElementById('supplierReportTableBody');
+  if (purchases.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:20px;">No purchases from this supplier yet.</td></tr>`;
+  } else {
+    tbody.innerHTML = purchases.sort((a,b) => b.date.localeCompare(a.date)).map(p => `
+      <tr>
+        <td>${p.date}</td>
+        <td>${p.ref || '-'}</td>
+        <td>${p.items ? p.items.length : 0}</td>
+        <td>${currencySym()}${(p.totalAmount || 0).toFixed(2)}</td>
+        <td>${currencySym()}${(p.amountPaid || 0).toFixed(2)}</td>
+        <td style="color:${(p.balanceDue || 0) > 0 ? 'var(--danger)' : 'var(--success)'};">${currencySym()}${(p.balanceDue || 0).toFixed(2)}</td>
+        <td>${p.paymentMode || '-'}</td>
+      </tr>
+    `).join('');
+  }
+
+  openModal('supplierReportModal');
+}
+
+// Call this in renderPurchases
+function renderPurchasesWithSupplierSummary() {
+  renderPurchases();
+  renderSupplierPurchaseSummary();
+}
+
+// ============================================================
+// END SUPPLIERS & PURCHASES MODULE
 // ============================================================
 
 // INVOICE PREVIEW & RENDER LOGIC (REWRITTEN for clean receipt print)

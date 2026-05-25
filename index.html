@@ -63,6 +63,27 @@
             <span class="menu-item-text">Inventory CRUD</span>
           </a>
         </li>
+        <li class="menu-item" data-tab="suppliers">
+          <a href="#" class="menu-item-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span class="menu-item-text">Suppliers</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="purchases">
+          <a href="#" class="menu-item-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span class="menu-item-text">Purchases</span>
+          </a>
+        </li>
         <li class="menu-item" data-tab="reports">
           <a href="#" class="menu-item-link">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -595,11 +616,149 @@
             </div>
           </div>
 
-        </div>
-      </main>
+         </div>
+       </main>
 
-      <!-- 5. SETTINGS PAGE VIEW -->
-      <main class="page-view" id="settingsPage">
+       <!-- 6. SUPPLIERS PAGE VIEW -->
+       <main class="page-view" id="suppliersPage">
+         <div style="max-width: 1100px; margin: 0 auto;">
+           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+             <div>
+               <h2 style="font-size: 20px; margin: 0;">Suppliers</h2>
+               <p style="margin: 4px 0 0; color: var(--text-secondary); font-size: 13px;">Manage your vendors and purchase sources</p>
+             </div>
+             <button class="btn btn-primary" onclick="openSupplierModal()">+ Add Supplier</button>
+           </div>
+
+           <div class="table-panel">
+             <div class="table-toolbar">
+               <div class="table-search-filters">
+                 <input type="text" id="supplierSearch" class="form-control" placeholder="Search suppliers..." oninput="renderSuppliers()" style="max-width: 280px;">
+               </div>
+             </div>
+
+             <div class="table-container">
+               <table class="custom-table">
+                 <thead>
+                   <tr>
+                     <th>Supplier Name</th>
+                     <th>Contact</th>
+                     <th>Phone</th>
+                     <th>GSTIN</th>
+                     <th>Outstanding</th>
+                     <th style="width: 140px;">Actions</th>
+                   </tr>
+                 </thead>
+                 <tbody id="suppliersTableBody">
+                   <!-- JS populated -->
+                 </tbody>
+               </table>
+             </div>
+           </div>
+         </div>
+       </main>
+
+       <!-- 7. PURCHASES PAGE VIEW -->
+       <main class="page-view" id="purchasesPage">
+         <div style="max-width: 1200px; margin: 0 auto;">
+           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+             <div>
+               <h2 style="font-size: 20px; margin: 0;">Purchase History</h2>
+               <p style="margin: 4px 0 0; color: var(--text-secondary); font-size: 13px;">Record stock purchases and track payables</p>
+             </div>
+             <button class="btn btn-primary" onclick="openPurchaseModal()">+ New Purchase</button>
+           </div>
+
+            <!-- Summary Cards -->
+            <div class="stats-grid" style="margin-bottom: 16px;">
+              <div class="stat-card">
+                <div class="stat-header">
+                  <span class="stat-title">Total Purchases</span>
+                </div>
+                <div class="stat-value" id="purchTotalAmount">₹0</div>
+                <div class="stat-trend neutral" id="purchCount">0 purchases</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-header">
+                  <span class="stat-title">Total Paid</span>
+                </div>
+                <div class="stat-value" id="purchTotalPaid">₹0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-header">
+                  <span class="stat-title">Outstanding Balance</span>
+                </div>
+                <div class="stat-value" id="purchOutstanding" style="color: var(--danger);">₹0</div>
+              </div>
+            </div>
+
+            <!-- Supplier-wise Purchase Summary -->
+            <div class="dashboard-card" style="margin-bottom: 16px;">
+              <div class="card-title-bar">
+                <h3 style="font-size: 15px;">Supplier-wise Purchase Summary</h3>
+              </div>
+              <div class="table-container" style="max-height: 280px; overflow-y: auto;">
+                <table class="custom-table" style="font-size:13px;">
+                  <thead>
+                    <tr>
+                      <th>Supplier</th>
+                      <th># Purchases</th>
+                      <th>Total Purchased</th>
+                      <th>Total Paid</th>
+                      <th>Outstanding</th>
+                      <th style="width: 80px;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="supplierPurchaseSummaryBody">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+           <div class="table-panel">
+             <div class="table-toolbar">
+               <div class="table-search-filters">
+                 <input type="text" id="purchaseSearch" class="form-control" placeholder="Search supplier or ref..." oninput="renderPurchases()" style="max-width: 260px;">
+                  <select id="purchaseStatusFilter" class="select-control" onchange="renderPurchases()">
+                    <option value="">All Status</option>
+                    <option value="paid">Fully Paid</option>
+                    <option value="partial">Partial Paid</option>
+                    <option value="due">Balance Due</option>
+                  </select>
+
+                  <select id="purchaseSupplierFilter" class="select-control" onchange="renderPurchases()">
+                    <option value="">All Suppliers</option>
+                  </select>
+               </div>
+             </div>
+
+             <div class="table-container">
+               <table class="custom-table">
+                 <thead>
+                   <tr>
+                     <th>Date</th>
+                     <th>Ref / Invoice</th>
+                     <th>Supplier</th>
+                     <th>Items</th>
+                     <th>Purchase Total</th>
+                     <th>Paid</th>
+                     <th>Balance Due</th>
+                     <th>Mode</th>
+                     <th style="width: 90px;">Actions</th>
+                   </tr>
+                 </thead>
+                 <tbody id="purchasesTableBody">
+                   <!-- JS populated -->
+                 </tbody>
+               </table>
+             </div>
+           </div>
+         </div>
+       </main>
+
+       <!-- 5. SETTINGS PAGE VIEW -->
+       <main class="page-view" id="settingsPage">
         <div style="max-width: 800px; margin: 0 auto;">
           
           <h2 style="font-size: 20px; margin: 0 0 16px 0;">Settings</h2>
@@ -991,6 +1150,162 @@
        <div class="modal-footer" style="display:flex; gap:8px;">
          <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeModal('exchangeModal')">Cancel</button>
          <button type="button" class="btn btn-primary" style="flex:1;" onclick="confirmExchange()">Confirm Exchange</button>
+       </div>
+     </div>
+   </div>
+
+   <!-- MODAL: ADD/EDIT SUPPLIER -->
+   <div class="modal-overlay" id="supplierModal">
+     <div class="modal-card" style="max-width: 520px;">
+       <div class="modal-header">
+         <h3 id="supplierModalTitle">Add Supplier</h3>
+         <button class="modal-close" onclick="closeModal('supplierModal')">×</button>
+       </div>
+       <div class="modal-body">
+         <input type="hidden" id="supplierId">
+         <div class="form-group">
+           <label>Supplier / Company Name *</label>
+           <input type="text" id="suppName" class="form-control" required>
+         </div>
+         <div class="form-row">
+           <div class="form-group">
+             <label>Contact Person</label>
+             <input type="text" id="suppContact" class="form-control">
+           </div>
+           <div class="form-group">
+             <label>Phone</label>
+             <input type="text" id="suppPhone" class="form-control">
+           </div>
+         </div>
+         <div class="form-group">
+           <label>Email</label>
+           <input type="email" id="suppEmail" class="form-control">
+         </div>
+         <div class="form-group">
+           <label>Address</label>
+           <textarea id="suppAddress" class="form-control" rows="2"></textarea>
+         </div>
+         <div class="form-row">
+           <div class="form-group">
+             <label>GSTIN</label>
+             <input type="text" id="suppGSTIN" class="form-control">
+           </div>
+           <div class="form-group">
+             <label>Opening Balance (₹)</label>
+             <input type="number" id="suppOpeningBalance" class="form-control" value="0" step="0.01">
+           </div>
+         </div>
+         <div class="form-group">
+           <label>Notes</label>
+           <textarea id="suppNotes" class="form-control" rows="2"></textarea>
+         </div>
+       </div>
+       <div class="modal-footer">
+         <button type="button" class="btn btn-secondary" onclick="closeModal('supplierModal')">Cancel</button>
+         <button type="button" class="btn btn-primary" onclick="saveSupplier()">Save Supplier</button>
+       </div>
+     </div>
+   </div>
+
+   <!-- MODAL: NEW PURCHASE ENTRY -->
+   <div class="modal-overlay" id="purchaseModal">
+     <div class="modal-card" style="max-width: 820px;">
+       <div class="modal-header">
+         <h3>New Purchase / Stock In</h3>
+         <button class="modal-close" onclick="closeModal('purchaseModal')">×</button>
+       </div>
+       <div class="modal-body">
+         <div class="form-row">
+           <div class="form-group">
+             <label>Supplier *</label>
+             <select id="purchaseSupplier" class="form-control"></select>
+           </div>
+           <div class="form-group">
+             <label>Purchase Date</label>
+             <input type="date" id="purchaseDate" class="form-control">
+           </div>
+           <div class="form-group">
+             <label>Supplier Invoice / Ref #</label>
+             <input type="text" id="purchaseRef" class="form-control" placeholder="Optional">
+           </div>
+         </div>
+
+         <!-- Purchase Items -->
+         <div style="margin: 12px 0 6px; font-weight:600; font-size:13px;">Purchase Items</div>
+         <div id="purchaseItemsContainer" style="border:1px solid var(--border-color); border-radius:6px; padding:8px; margin-bottom:12px; max-height:220px; overflow-y:auto;">
+           <!-- Dynamic rows added by JS -->
+         </div>
+         <button type="button" class="btn btn-secondary" onclick="addPurchaseItemRow()" style="margin-bottom:12px;">+ Add Item Row</button>
+
+         <div class="form-row" style="margin-top:12px;">
+           <div class="form-group">
+             <label>Total Purchase Amount</label>
+             <input type="text" id="purchaseTotal" class="form-control" readonly style="background:var(--bg-tertiary);">
+           </div>
+           <div class="form-group">
+             <label>Amount Paid</label>
+             <input type="number" id="purchasePaid" class="form-control" value="0" step="0.01" oninput="updatePurchaseBalance()">
+           </div>
+           <div class="form-group">
+             <label>Balance Due</label>
+             <input type="text" id="purchaseBalance" class="form-control" readonly style="background:var(--bg-tertiary); font-weight:600;">
+           </div>
+         </div>
+
+         <div class="form-row">
+           <div class="form-group">
+             <label>Payment Mode</label>
+             <select id="purchasePaymentMode" class="form-control">
+               <option value="Cash">Cash</option>
+               <option value="Bank Transfer">Bank Transfer</option>
+               <option value="UPI">UPI</option>
+               <option value="Credit">Credit (Pay Later)</option>
+             </select>
+           </div>
+           <div class="form-group" style="flex:2;">
+             <label>Notes / Remarks</label>
+             <input type="text" id="purchaseNotes" class="form-control" placeholder="Quality check, delivery notes...">
+           </div>
+         </div>
+       </div>
+       <div class="modal-footer">
+         <button type="button" class="btn btn-secondary" onclick="closeModal('purchaseModal')">Cancel</button>
+         <button type="button" class="btn btn-success" onclick="savePurchase()">Record Purchase &amp; Update Stock</button>
+       </div>
+     </div>
+   </div>
+
+   <!-- MODAL: SUPPLIER PURCHASE REPORT -->
+   <div class="modal-overlay" id="supplierReportModal">
+     <div class="modal-card" style="max-width: 820px;">
+       <div class="modal-header">
+         <h3 id="supplierReportTitle">Supplier Purchase Report</h3>
+         <button class="modal-close" onclick="closeModal('supplierReportModal')">×</button>
+       </div>
+       <div class="modal-body">
+         <div id="supplierReportSummary" style="background:var(--bg-tertiary); padding:12px; border-radius:6px; margin-bottom:16px; font-size:13px;"></div>
+         
+         <div class="table-container" style="max-height: 320px; overflow-y:auto;">
+           <table class="custom-table" style="font-size:13px;">
+             <thead>
+               <tr>
+                 <th>Date</th>
+                 <th>Ref</th>
+                 <th>Items</th>
+                 <th>Total</th>
+                 <th>Paid</th>
+                 <th>Balance</th>
+                 <th>Mode</th>
+               </tr>
+             </thead>
+             <tbody id="supplierReportTableBody">
+               <!-- Populated dynamically -->
+             </tbody>
+           </table>
+         </div>
+       </div>
+       <div class="modal-footer">
+         <button type="button" class="btn btn-secondary" style="width:100%;" onclick="closeModal('supplierReportModal')">Close</button>
        </div>
      </div>
    </div>
