@@ -3296,4 +3296,72 @@ document.addEventListener('DOMContentLoaded', () => {
   if (themeBtn) {
     themeBtn.addEventListener('click', toggleTheme);
   }
+
+  // === BACKUP BEFORE EXIT FEATURE ===
+  window.addEventListener('beforeunload', (e) => {
+    e.preventDefault();
+    e.returnValue = 'You have unsaved changes. Do you want to backup before leaving?';
+  });
 });
+
+// Exit functions
+function confirmExit() {
+  openModal('exitConfirmModal');
+}
+
+function downloadFullBackup() {
+  try {
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+      data: state
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nexus-retail-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return true;
+  } catch (err) {
+    showToast('Failed to create backup', 'danger');
+    return false;
+  }
+}
+
+function downloadFullBackupAndExit() {
+  downloadFullBackup();
+  setTimeout(() => {
+    closeModal('exitConfirmModal');
+    showExitMessage();
+  }, 800);
+}
+
+function exitWithoutBackup() {
+  closeModal('exitConfirmModal');
+  showExitMessage();
+}
+
+function showExitMessage() {
+  const main = document.querySelector('.main-wrapper');
+  if (main) {
+    main.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:center; height:80vh; flex-direction:column; text-align:center;">
+        <h2 style="font-size:28px; margin-bottom:12px;">Thank you for using Nexus Retail</h2>
+        <p style="color:var(--text-secondary); max-width:400px;">
+          Your data has been safely stored in the browser.<br>
+          You can now close this tab.
+        </p>
+        <button onclick="location.reload()" class="btn btn-primary" style="margin-top:24px;">
+          Reopen Application
+        </button>
+      </div>
+    `;
+  } else {
+    alert('You can now safely close this tab.');
+    window.close();
+  }
+}

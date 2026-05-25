@@ -106,10 +106,13 @@
             <span class="profile-role">Store Manager</span>
           </div>
         </div>
-        <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
-          <!-- Populated by JS -->
-        </button>
-      </div>
+         <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+           <!-- Populated by JS -->
+         </button>
+         <button onclick="confirmExit()" class="theme-toggle-btn" title="Exit Application" style="margin-left:6px; background:var(--danger); color:white; border:1px solid var(--danger);">
+           ⏻
+         </button>
+       </div>
     </aside>
 
     <!-- Main Content Workspace -->
@@ -1308,9 +1311,35 @@
          <button type="button" class="btn btn-secondary" style="width:100%;" onclick="closeModal('supplierReportModal')">Close</button>
        </div>
      </div>
-   </div>
+    </div>
 
-   <!-- MODAL: KEYBOARD SHORTCUTS -->
+    <!-- MODAL: EXIT CONFIRMATION WITH BACKUP -->
+    <div class="modal-overlay" id="exitConfirmModal">
+      <div class="modal-card" style="max-width: 420px;">
+        <div class="modal-header">
+          <h3>Exit Application</h3>
+          <button class="modal-close" onclick="closeModal('exitConfirmModal')">×</button>
+        </div>
+        <div class="modal-body" style="text-align:center; padding: 20px 10px;">
+          <p style="margin-bottom:16px; font-size:15px;">
+            Do you want to <strong>download a full backup</strong> before exiting?
+          </p>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <button class="btn btn-success" onclick="downloadFullBackupAndExit()" style="padding:12px;">
+              ⬇ Download Full Backup &amp; Exit
+            </button>
+            <button class="btn btn-secondary" onclick="exitWithoutBackup()" style="padding:12px;">
+              Exit Without Backup
+            </button>
+            <button class="btn btn-secondary" onclick="closeModal('exitConfirmModal')" style="padding:10px;">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: KEYBOARD SHORTCUTS -->
   <div class="modal-overlay" id="shortcutsModal">
     <div class="modal-card" style="max-width: 520px;">
       <div class="modal-header">
